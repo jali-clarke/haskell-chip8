@@ -13,6 +13,10 @@ module VMState
     writeAddrRegister,
     popStack,
     pushStack,
+    getDelayTimer,
+    setDelayTimer,
+    getSoundTimer,
+    setSoundTimer,
   )
 where
 
@@ -102,6 +106,18 @@ pushStack returnAddr =
         State.liftIO $ MVector.write (stackData stackState) newStackLastElemAddr returnAddr
         setNextStackAddr newStackNextElemAddr
 
+getDelayTimer :: VMExec stackSize programSize Word8
+getDelayTimer = VMExec $ State.gets (delay . timers)
+
+setDelayTimer :: Word8 -> VMExec stackSize programSize ()
+setDelayTimer timerValue = modifyTimers (\timerState -> timerState {delay = timerValue})
+
+getSoundTimer :: VMExec stackSize programSize Word8
+getSoundTimer = VMExec $ State.gets (sound . timers)
+
+setSoundTimer :: Word8 -> VMExec stackSize programSize ()
+setSoundTimer timerValue = modifyTimers (\timerState -> timerState {sound = timerValue})
+
 withMemoryData :: (MemoryData -> IO a) -> VMExec stackSize programSize a
 withMemoryData memoryAction = VMExec $ State.gets (memData . memory) >>= State.liftIO . memoryAction
 
@@ -110,6 +126,9 @@ withVRegistersData vRegistersAction = VMExec $ State.gets (vRegsData . registers
 
 setNextStackAddr :: State.MonadState (VMState stackSize programSize) m => StackAddress stackSize -> m ()
 setNextStackAddr newNextStackAddr = State.modify (\vmState -> vmState {stack = (stack vmState) {nextStackAddr = newNextStackAddr}})
+
+modifyTimers :: (Timers -> Timers) -> VMExec stackSize programSize ()
+modifyTimers timersUpdate = VMExec $ State.modify (\vmState -> vmState {timers = timersUpdate (timers vmState)})
 
 one :: Finite 1
 one = Finite.finite 1

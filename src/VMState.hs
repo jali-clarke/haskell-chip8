@@ -30,39 +30,55 @@ type MemorySize = 4096
 
 type NumRegisters = 16
 
-newtype Memory = Memory {memData :: MVector.MVector MemorySize (PrimState IO) Word8}
+type MemoryData =  MVector.MVector MemorySize (PrimState IO) Word8
 
-data Registers = Registers {vRegsData :: MVector.MVector NumRegisters (PrimState IO) Word8, addrReg :: {-# UNPACK #-} !Word16}
+type VRegistersData = MVector.MVector NumRegisters (PrimState IO) Word8
 
-data Stack n = Stack {stackData :: MVector.MVector n (PrimState IO) Word16, stackPtr :: !(Finite n)}
+type MemoryAddress = Finite MemorySize
+
+type VRegisterAddress = Finite NumRegisters
+
+type ROMAddress = Word16
+
+type OpCodeBin = Word16
+
+type ProgramCounter programSize = Finite programSize
+
+type StackPointer stackSize = Finite stackSize
+
+newtype Memory = Memory {memData :: MemoryData}
+
+data Registers = Registers {vRegsData :: VRegistersData, addrReg :: {-# UNPACK #-} !ROMAddress}
+
+data Stack stackSize = Stack {stackData :: MVector.MVector stackSize (PrimState IO) ROMAddress, stackPtr :: !(StackPointer stackSize)}
 
 data Timers = Timers {delay :: {-# UNPACK #-} !Word8, sound :: {-# UNPACK #-} !Word8}
 
-data Program n = Program {rom :: Vector.Vector n Word16, pc :: !(Finite n)}
+data Program programSize = Program {rom :: Vector.Vector programSize OpCodeBin, pc :: !(ProgramCounter programSize)}
 
 data VMState stackSize programSize = VMState {memory :: Memory, stack :: Stack stackSize, registers :: Registers, timers :: Timers, program :: Program programSize}
 
 newtype VMExec stackSize programSize a = VMExec (StateT (VMState stackSize programSize) (ExceptT String IO) a) deriving (Functor, Applicative, Monad)
 
-readMemory :: Finite MemorySize -> VMExec stackSize programSize Word8
+readMemory :: MemoryAddress -> VMExec stackSize programSize Word8
 readMemory memAddr = withMemoryData $ \memoryData -> MVector.read memoryData memAddr
 
-writeMemory :: Finite MemorySize -> Word8 -> VMExec stackSize programSize ()
+writeMemory :: MemoryAddress -> Word8 -> VMExec stackSize programSize ()
 writeMemory memAddr byte = withMemoryData $ \memoryData -> MVector.write memoryData memAddr byte
 
-readVRegister :: Finite NumRegisters -> VMExec stackSize programSize Word8
+readVRegister :: VRegisterAddress -> VMExec stackSize programSize Word8
 readVRegister regNumber = withVRegistersData $ \vRegistersData -> MVector.read vRegistersData regNumber
 
-writeVRegister :: Finite NumRegisters -> Word8 -> VMExec stackSize programSize ()
+writeVRegister :: VRegisterAddress -> Word8 -> VMExec stackSize programSize ()
 writeVRegister regNumber byte = withVRegistersData $ \vRegistersData -> MVector.write vRegistersData regNumber byte
 
-readAddrRegister :: VMExec stackSize programSize Word16
+readAddrRegister :: VMExec stackSize programSize ROMAddress
 readAddrRegister = VMExec $ State.gets (addrReg . registers)
 
-writeAddrRegister :: Word16 -> VMExec stackSize programSize ()
+writeAddrRegister :: ROMAddress -> VMExec stackSize programSize ()
 writeAddrRegister addrValue = VMExec $ State.modify (\vmState -> vmState {registers = (registers vmState) {addrReg = addrValue}})
 
-pushStack :: KnownNat stackSize => Word16 -> VMExec stackSize programSize ()
+pushStack :: KnownNat stackSize => ROMAddress -> VMExec stackSize programSize ()
 pushStack returnAddr =
   VMExec $ do
     stackState <- State.gets stack
@@ -73,8 +89,8 @@ pushStack returnAddr =
         State.liftIO $ MVector.write (stackData stackState) nextPtr returnAddr
         State.modify (\vmState -> vmState {stack = (stack vmState) {stackPtr = nextPtr}})
 
-withMemoryData :: (MVector.MVector MemorySize (PrimState IO) Word8 -> IO a) -> VMExec stackSize programSize a
+withMemoryData :: (MemoryData -> IO a) -> VMExec stackSize programSize a
 withMemoryData memoryAction = VMExec $ State.gets (memData . memory) >>= State.liftIO . memoryAction
 
-withVRegistersData :: (MVector.MVector NumRegisters (PrimState IO) Word8 -> IO a) -> VMExec stackSize programSize a
+withVRegistersData :: (VRegistersData -> IO a) -> VMExec stackSize programSize a
 withVRegistersData vRegistersAction = VMExec $ State.gets (vRegsData . registers) >>= State.liftIO . vRegistersAction

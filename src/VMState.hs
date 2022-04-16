@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
@@ -10,7 +11,8 @@ module VMState
     writeVRegister,
     readAddrRegister,
     writeAddrRegister,
-    pushStack
+    popStack,
+    pushStack,
   )
 where
 
@@ -30,7 +32,7 @@ type MemorySize = 4096
 
 type NumRegisters = 16
 
-type MemoryData =  MVector.MVector MemorySize (PrimState IO) Word8
+type MemoryData = MVector.MVector MemorySize (PrimState IO) Word8
 
 type VRegistersData = MVector.MVector NumRegisters (PrimState IO) Word8
 
@@ -44,13 +46,13 @@ type OpCodeBin = Word16
 
 type ProgramCounter programSize = Finite programSize
 
-type StackPointer stackSize = Finite stackSize
+type StackAddress stackSize = Finite stackSize
 
 newtype Memory = Memory {memData :: MemoryData}
 
 data Registers = Registers {vRegsData :: VRegistersData, addrReg :: {-# UNPACK #-} !ROMAddress}
 
-data Stack stackSize = Stack {stackData :: MVector.MVector stackSize (PrimState IO) ROMAddress, stackPtr :: !(StackPointer stackSize)}
+data Stack stackSize = Stack {stackData :: MVector.MVector stackSize (PrimState IO) ROMAddress, nextStackAddr :: !(StackAddress stackSize)}
 
 data Timers = Timers {delay :: {-# UNPACK #-} !Word8, sound :: {-# UNPACK #-} !Word8}
 
@@ -78,19 +80,36 @@ readAddrRegister = VMExec $ State.gets (addrReg . registers)
 writeAddrRegister :: ROMAddress -> VMExec stackSize programSize ()
 writeAddrRegister addrValue = VMExec $ State.modify (\vmState -> vmState {registers = (registers vmState) {addrReg = addrValue}})
 
+popStack :: VMExec stackSize programSize ROMAddress
+popStack =
+  VMExec $ do
+    stackState <- State.gets stack
+    case Finite.sub (nextStackAddr stackState) one of
+      Left _ -> Except.throwError "stack underflow"
+      Right stackLastElemAddr -> do
+        romAddress <- State.liftIO $ MVector.read (stackData stackState) stackLastElemAddr
+        setNextStackAddr stackLastElemAddr
+        pure romAddress
+
 pushStack :: KnownNat stackSize => ROMAddress -> VMExec stackSize programSize ()
 pushStack returnAddr =
   VMExec $ do
     stackState <- State.gets stack
-    let maybeNextPtr = Finite.add <$> pure (stackPtr stackState) <*> Finite.packFinite 1
-    case maybeNextPtr >>= Finite.strengthen of
+    let newStackLastElemAddr = nextStackAddr stackState
+    case Finite.strengthen $ Finite.add newStackLastElemAddr one of
       Nothing -> Except.throwError "stack overflow"
-      Just nextPtr -> do
-        State.liftIO $ MVector.write (stackData stackState) nextPtr returnAddr
-        State.modify (\vmState -> vmState {stack = (stack vmState) {stackPtr = nextPtr}})
+      Just newStackNextElemAddr -> do
+        State.liftIO $ MVector.write (stackData stackState) newStackLastElemAddr returnAddr
+        setNextStackAddr newStackNextElemAddr
 
 withMemoryData :: (MemoryData -> IO a) -> VMExec stackSize programSize a
 withMemoryData memoryAction = VMExec $ State.gets (memData . memory) >>= State.liftIO . memoryAction
 
 withVRegistersData :: (VRegistersData -> IO a) -> VMExec stackSize programSize a
 withVRegistersData vRegistersAction = VMExec $ State.gets (vRegsData . registers) >>= State.liftIO . vRegistersAction
+
+setNextStackAddr :: State.MonadState (VMState stackSize programSize) m => StackAddress stackSize -> m ()
+setNextStackAddr newNextStackAddr = State.modify (\vmState -> vmState {stack = (stack vmState) {nextStackAddr = newNextStackAddr}})
+
+one :: Finite 1
+one = Finite.finite 1

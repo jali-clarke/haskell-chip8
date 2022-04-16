@@ -8,6 +8,8 @@ module VMState
     writeMemory,
     readVRegister,
     writeVRegister,
+    readAddrRegister,
+    writeAddrRegister,
   )
 where
 
@@ -48,6 +50,12 @@ readVRegister regNumber = withRegisters $ \stateRegisters -> MVector.read (vreg 
 
 writeVRegister :: Finite NumRegisters -> Word8 -> VMExec stackSize programSize ()
 writeVRegister regNumber byte = withRegisters $ \stateRegisters -> MVector.write (vreg stateRegisters) regNumber byte
+
+readAddrRegister :: VMExec stackSize programSize Word16
+readAddrRegister = VMExec $ State.gets (addrReg . registers)
+
+writeAddrRegister :: Word16 -> VMExec stackSize programSize ()
+writeAddrRegister addrValue = VMExec $ State.modify (\vmState -> vmState {registers = (registers vmState) {addrReg = addrValue}})
 
 withMemory :: (Memory -> IO a) -> VMExec stackSize programSize a
 withMemory memoryAction = VMExec $ State.gets memory >>= State.liftIO . memoryAction

@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module VMState
@@ -18,6 +20,8 @@ module VMState
     getSoundTimer,
     setSoundTimer,
     getOpCode,
+    incrementPC,
+    setPC
   )
 where
 
@@ -31,7 +35,7 @@ import qualified Data.Finite as Finite
 import qualified Data.Vector.Unboxed.Mutable.Sized as MVector
 import qualified Data.Vector.Unboxed.Sized as Vector
 import Data.Word (Word16, Word8)
-import GHC.TypeNats (KnownNat)
+import GHC.TypeNats (KnownNat, type (<=), type (+))
 
 type MemorySize = 4096
 
@@ -96,12 +100,12 @@ popStack =
         setNextStackAddr stackLastElemAddr
         pure romAddress
 
-pushStack :: KnownNat stackSize => ROMAddress -> VMExec stackSize programSize ()
+pushStack :: (KnownNat stackSize, stackSize <= stackSize + 2) => ROMAddress -> VMExec stackSize programSize ()
 pushStack returnAddr =
   VMExec $ do
     stackState <- State.gets stack
     let newStackLastElemAddr = nextStackAddr stackState
-    case Finite.strengthen $ Finite.add newStackLastElemAddr one of
+    case addOne newStackLastElemAddr of
       Nothing -> Except.throwError "stack overflow"
       Just newStackNextElemAddr -> do
         State.liftIO $ MVector.write (stackData stackState) newStackLastElemAddr returnAddr
@@ -124,6 +128,16 @@ getOpCode =
   let opCodeAccessor programState = Vector.index (rom programState) (pc programState)
    in VMExec $ State.gets (opCodeAccessor . program)
 
+incrementPC :: (KnownNat programSize, programSize <= programSize + 2) => VMExec stackSize programSize ()
+incrementPC = do
+  programState <- VMExec $ State.gets program
+  case addOne (pc programState) of
+    Nothing -> VMExec $ Except.throwError "incremented past end of program rom"
+    Just nextPC -> setPC nextPC
+
+setPC :: ProgramCounter programSize -> VMExec stackSize programSize ()
+setPC nextPC = VMExec $ State.modify (\vmState -> vmState {program = (program vmState) {pc = nextPC}})
+
 withMemoryData :: (MemoryData -> IO a) -> VMExec stackSize programSize a
 withMemoryData memoryAction = VMExec $ State.gets (memData . memory) >>= State.liftIO . memoryAction
 
@@ -136,5 +150,8 @@ setNextStackAddr newNextStackAddr = State.modify (\vmState -> vmState {stack = (
 modifyTimers :: (Timers -> Timers) -> VMExec stackSize programSize ()
 modifyTimers timersUpdate = VMExec $ State.modify (\vmState -> vmState {timers = timersUpdate (timers vmState)})
 
-one :: Finite 1
+addOne :: (KnownNat n, n <= n + 2) => Finite n -> Maybe (Finite n)
+addOne n = Finite.strengthenN $ Finite.add n one
+
+one :: Finite 2
 one = Finite.finite 1

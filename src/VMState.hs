@@ -17,6 +17,7 @@ module VMState
     setDelayTimer,
     getSoundTimer,
     setSoundTimer,
+    getOpCode,
   )
 where
 
@@ -117,6 +118,11 @@ getSoundTimer = VMExec $ State.gets (sound . timers)
 
 setSoundTimer :: Word8 -> VMExec stackSize programSize ()
 setSoundTimer timerValue = modifyTimers (\timerState -> timerState {sound = timerValue})
+
+getOpCode :: VMExec stackSize programSize OpCodeBin
+getOpCode =
+  let opCodeAccessor programState = Vector.index (rom programState) (pc programState)
+   in VMExec $ State.gets (opCodeAccessor . program)
 
 withMemoryData :: (MemoryData -> IO a) -> VMExec stackSize programSize a
 withMemoryData memoryAction = VMExec $ State.gets (memData . memory) >>= State.liftIO . memoryAction

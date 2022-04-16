@@ -1,0 +1,34 @@
+# https://github.com/sol/hpack
+
+name: haskell-chip8
+version: 0.0.0.1
+build-type: Simple
+
+dependencies:
+- base
+
+executables:
+  haskell-chip-8:
+    main: Main.hs
+    source-dirs:
+    - app
+    dependencies:
+    - haskell-chip8
+    ghc-options:
+    - -O2
+    - -Wall
+    - -Werror
+    - -threaded
+
+library:
+  source-dirs:
+  - src
+  dependencies:
+  - finite-typelits
+  - mtl
+  - primitive
+  - vector-sized
+  ghc-options:
+  - -O2
+  - -Wall
+  - -Werror

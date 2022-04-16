@@ -27,7 +27,7 @@ type NumRegisters = 16
 
 newtype Memory = Memory {memData :: MVector.MVector MemorySize (PrimState IO) Word8}
 
-data Registers = Registers {vreg :: MVector.MVector NumRegisters (PrimState IO) Word8, addrReg :: {-# UNPACK #-} !Word16}
+data Registers = Registers {vRegsData :: MVector.MVector NumRegisters (PrimState IO) Word8, addrReg :: {-# UNPACK #-} !Word16}
 
 data Stack n = Stack {stackData :: MVector.MVector n (PrimState IO) Word16, stackPtr :: !(Finite n)}
 
@@ -40,16 +40,16 @@ data VMState stackSize programSize = VMState {memory :: Memory, stack :: Stack s
 newtype VMExec stackSize programSize a = VMExec (State.StateT (VMState stackSize programSize) (Except.ExceptT String IO) a) deriving (Functor, Applicative, Monad)
 
 readMemory :: Finite MemorySize -> VMExec stackSize programSize Word8
-readMemory memAddr = withMemory $ \stateMemory -> MVector.read (memData stateMemory) memAddr
+readMemory memAddr = withMemoryData $ \memoryData -> MVector.read memoryData memAddr
 
 writeMemory :: Finite MemorySize -> Word8 -> VMExec stackSize programSize ()
-writeMemory memAddr byte = withMemory $ \stateMemory -> MVector.write (memData stateMemory) memAddr byte
+writeMemory memAddr byte = withMemoryData $ \memoryData -> MVector.write memoryData memAddr byte
 
 readVRegister :: Finite NumRegisters -> VMExec stackSize programSize Word8
-readVRegister regNumber = withRegisters $ \stateRegisters -> MVector.read (vreg stateRegisters) regNumber
+readVRegister regNumber = withVRegistersData $ \vRegistersData -> MVector.read vRegistersData regNumber
 
 writeVRegister :: Finite NumRegisters -> Word8 -> VMExec stackSize programSize ()
-writeVRegister regNumber byte = withRegisters $ \stateRegisters -> MVector.write (vreg stateRegisters) regNumber byte
+writeVRegister regNumber byte = withVRegistersData $ \vRegistersData -> MVector.write vRegistersData regNumber byte
 
 readAddrRegister :: VMExec stackSize programSize Word16
 readAddrRegister = VMExec $ State.gets (addrReg . registers)
@@ -57,8 +57,8 @@ readAddrRegister = VMExec $ State.gets (addrReg . registers)
 writeAddrRegister :: Word16 -> VMExec stackSize programSize ()
 writeAddrRegister addrValue = VMExec $ State.modify (\vmState -> vmState {registers = (registers vmState) {addrReg = addrValue}})
 
-withMemory :: (Memory -> IO a) -> VMExec stackSize programSize a
-withMemory memoryAction = VMExec $ State.gets memory >>= State.liftIO . memoryAction
+withMemoryData :: (MVector.MVector MemorySize (PrimState IO) Word8 -> IO a) -> VMExec stackSize programSize a
+withMemoryData memoryAction = VMExec $ State.gets (memData . memory) >>= State.liftIO . memoryAction
 
-withRegisters :: (Registers -> IO a) -> VMExec stackSize programSize a
-withRegisters registersAction = VMExec $ State.gets registers >>= State.liftIO . registersAction
+withVRegistersData :: (MVector.MVector NumRegisters (PrimState IO) Word8 -> IO a) -> VMExec stackSize programSize a
+withVRegistersData vRegistersAction = VMExec $ State.gets (vRegsData . registers) >>= State.liftIO . vRegistersAction

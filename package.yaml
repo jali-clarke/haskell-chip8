@@ -27,6 +27,7 @@ library:
   - finite-typelits
   - mtl
   - primitive
+  - vector
   - vector-sized
   ghc-options:
   - -O2

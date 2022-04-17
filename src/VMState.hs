@@ -1,12 +1,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module VMState
-  ( VMExec,
+  ( VMState,
+    VMExec,
+    withNewVMState,
     runVM,
     readMemory,
     writeMemory,
@@ -33,10 +35,13 @@ import Control.Monad.State.Strict (StateT)
 import qualified Control.Monad.State.Strict as State
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
+import qualified Data.Vector.Unboxed as Vector
+import qualified Data.Vector.Unboxed.Mutable as MVector
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
 import qualified Data.Vector.Unboxed.Sized as SizedVector
 import Data.Word (Word16, Word8)
-import GHC.TypeNats (KnownNat, type (+), type (<=))
+import GHC.TypeNats (type (+), type (<=))
+import qualified GHC.TypeNats as TypeNats
 
 type MemorySize = 4096
 
@@ -76,6 +81,39 @@ data VMState stackSize programSize = VMState {memory :: Memory, stack :: Stack s
 
 newtype VMExec stackSize programSize a = VMExec (ExceptT String (StateT (VMState stackSize programSize) IO) a) deriving (Functor, Applicative, Monad)
 
+withNewVMState :: Int -> Vector.Vector OpCodeBin -> (forall stackSize programSize. VMState stackSize programSize -> IO r) -> IO r
+withNewVMState maxStackSize programRom callback = do
+  unsizedStackData <- MVector.unsafeNew maxStackSize
+  SizedMVector.withSized unsizedStackData $ \thisStackData ->
+    SizedVector.withSized programRom $ \sizedProgramRom -> do
+      memoryData <- SizedMVector.unsafeNew
+      vRegistersData <- SizedMVector.unsafeNew
+      let newState =
+            VMState
+              { memory = Memory memoryData,
+                stack =
+                  Stack
+                    { stackData = thisStackData,
+                      nextStackAddr = Finite.finite 0
+                    },
+                registers =
+                  Registers
+                    { vRegsData = vRegistersData,
+                      addrReg = 0
+                    },
+                timers =
+                  Timers
+                    { delay = 0,
+                      sound = 0
+                    },
+                program =
+                  Program
+                    { rom = sizedProgramRom,
+                      pc = Finite.finite 0
+                    }
+              }
+      callback newState
+
 runVM :: VMState stackSize programSize -> VMExec stackSize programSize a -> IO (Either String a, VMState stackSize programSize)
 runVM vmState (VMExec action) = State.runStateT (Except.runExceptT action) vmState
 
@@ -108,7 +146,7 @@ popStack =
         setNextStackAddr stackLastElemAddr
         pure romAddress
 
-pushStack :: (KnownNat stackSize, stackSize <= stackSize + 2) => ROMAddress -> VMExec stackSize programSize ()
+pushStack :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2) => ROMAddress -> VMExec stackSize programSize ()
 pushStack returnAddr =
   VMExec $ do
     stackState <- State.gets stack
@@ -136,7 +174,7 @@ getOpCode =
   let opCodeAccessor programState = SizedVector.index (rom programState) (pc programState)
    in VMExec $ State.gets (opCodeAccessor . program)
 
-incrementPC :: (KnownNat programSize, programSize <= programSize + 2) => VMExec stackSize programSize ()
+incrementPC :: (TypeNats.KnownNat programSize, programSize <= programSize + 2) => VMExec stackSize programSize ()
 incrementPC = do
   programState <- VMExec $ State.gets program
   case addOne (pc programState) of
@@ -158,7 +196,7 @@ setNextStackAddr newNextStackAddr = State.modify (\vmState -> vmState {stack = (
 modifyTimers :: (Timers -> Timers) -> VMExec stackSize programSize ()
 modifyTimers timersUpdate = VMExec $ State.modify (\vmState -> vmState {timers = timersUpdate (timers vmState)})
 
-addOne :: (KnownNat n, n <= n + 2) => Finite n -> Maybe (Finite n)
+addOne :: (TypeNats.KnownNat n, n <= n + 2) => Finite n -> Maybe (Finite n)
 addOne n = Finite.strengthenN $ Finite.add n one
 
 one :: Finite 2

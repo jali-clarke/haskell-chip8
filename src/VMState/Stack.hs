@@ -7,8 +7,8 @@
 
 module VMState.Stack
   ( Stack,
-    StackAction,
-    runStackAction,
+    Action,
+    runAction,
     withNewStack,
     popStack,
     pushStack,
@@ -30,10 +30,10 @@ type StackData stackSize = SizedBoxedMVector.MVector stackSize (PrimState IO) Me
 
 data Stack stackSize = Stack {stackData :: StackData stackSize, nextStackAddr :: StackAddress stackSize}
 
-newtype StackAction stackSize a = StackAction (MTL.ExceptT String (MTL.StateT (Stack stackSize) IO) a) deriving (Functor, Applicative, Monad)
+newtype Action stackSize a = Action (MTL.ExceptT String (MTL.StateT (Stack stackSize) IO) a) deriving (Functor, Applicative, Monad)
 
-runStackAction :: StackAction stackSize a -> Stack stackSize -> IO (Either String a, Stack stackSize)
-runStackAction (StackAction action) stack = MTL.runStateT (MTL.runExceptT action) stack
+runAction :: Action stackSize a -> Stack stackSize -> IO (Either String a, Stack stackSize)
+runAction (Action action) stack = MTL.runStateT (MTL.runExceptT action) stack
 
 withNewStack :: Int -> (forall stackSize. Stack stackSize -> IO r) -> IO r
 withNewStack maxStackSize callback = do
@@ -41,9 +41,9 @@ withNewStack maxStackSize callback = do
   SizedBoxedMVector.withSized unsizedStackData $ \thisStackData ->
     callback (Stack {stackData = thisStackData, nextStackAddr = Finite.finite 0})
 
-popStack :: StackAction stackSize MemoryAddress
+popStack :: Action stackSize MemoryAddress
 popStack =
-  StackAction $ do
+  Action $ do
     stack <- MTL.get
     case Finite.sub (nextStackAddr stack) one of
       Left _ -> MTL.throwError "stack underflow"
@@ -52,9 +52,9 @@ popStack =
         MTL.put $ stack {nextStackAddr = stackLastElemAddr}
         pure memAddress
 
-pushStack :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2) => MemoryAddress -> StackAction stackSize ()
+pushStack :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2) => MemoryAddress -> Action stackSize ()
 pushStack returnAddr =
-  StackAction $ do
+  Action $ do
     stack <- MTL.get
     let newStackLastElemAddr = nextStackAddr stack
     case addOne newStackLastElemAddr of

@@ -2,9 +2,9 @@
 
 module VMState.Registers
   ( Registers,
-    RegistersAction,
+    Action,
+    runAction,
     newRegisters,
-    runRegistersAction,
     readVRegister,
     writeVRegister,
     readAddrRegister,
@@ -22,30 +22,30 @@ type VRegistersData = SizedMVector.MVector NumRegisters (PrimState IO) Word8
 
 data Registers = Registers {vRegsData :: VRegistersData, addrReg :: MemoryAddress}
 
-newtype RegistersAction a = RegistersAction (MTL.StateT Registers IO a) deriving (Functor, Applicative, Monad)
+newtype Action a = Action (MTL.StateT Registers IO a) deriving (Functor, Applicative, Monad)
 
-runRegistersAction :: RegistersAction a -> Registers -> IO (a, Registers)
-runRegistersAction (RegistersAction action) registers = MTL.runStateT action registers
+runAction :: Action a -> Registers -> IO (a, Registers)
+runAction (Action action) registers = MTL.runStateT action registers
 
 newRegisters :: IO Registers
 newRegisters = do
   vRegistersData <- SizedMVector.unsafeNew
   pure $ Registers {vRegsData = vRegistersData, addrReg = 0}
 
-readVRegister :: VRegisterAddress -> RegistersAction Word8
+readVRegister :: VRegisterAddress -> Action Word8
 readVRegister regAddr =
-  RegistersAction $ do
+  Action $ do
     registers <- MTL.get
     MTL.liftIO $ SizedMVector.read (vRegsData registers) regAddr
 
-writeVRegister :: VRegisterAddress -> Word8 -> RegistersAction ()
+writeVRegister :: VRegisterAddress -> Word8 -> Action ()
 writeVRegister regAddr byte =
-  RegistersAction $ do
+  Action $ do
     registers <- MTL.get
     MTL.liftIO $ SizedMVector.write (vRegsData registers) regAddr byte
 
-readAddrRegister :: RegistersAction MemoryAddress
-readAddrRegister = RegistersAction $ fmap addrReg MTL.get
+readAddrRegister :: Action MemoryAddress
+readAddrRegister = Action $ fmap addrReg MTL.get
 
-writeAddrRegister :: MemoryAddress -> RegistersAction ()
-writeAddrRegister addrValue = RegistersAction $ MTL.modify (\registers -> registers {addrReg = addrValue})
+writeAddrRegister :: MemoryAddress -> Action ()
+writeAddrRegister addrValue = Action $ MTL.modify (\registers -> registers {addrReg = addrValue})

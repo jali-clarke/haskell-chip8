@@ -32,13 +32,13 @@ import qualified GHC.TypeLits.Compare as TypeNats
 import qualified GHC.TypeNats as TypeNats
 import qualified SizedByteString
 import TypeNatsHelpers
-import VMState.Memory (Memory, MemoryAction)
+import VMState.Memory (Memory)
 import qualified VMState.Memory as Memory
-import VMState.Registers (Registers, RegistersAction)
+import VMState.Registers (Registers)
 import qualified VMState.Registers as Registers
-import VMState.Stack (Stack, StackAction)
+import VMState.Stack (Stack)
 import qualified VMState.Stack as Stack
-import VMState.Timers (Timers, TimersAction)
+import VMState.Timers (Timers)
 import qualified VMState.Timers as Timers
 
 type ProgramCounter = MemoryAddress
@@ -73,35 +73,35 @@ withNewVMState maxStackSize programRom callback =
 runVM :: VMState stackSize -> VMExec stackSize a -> IO (Either String a, VMState stackSize)
 runVM vmState (VMExec action) = MTL.runStateT (MTL.runExceptT action) vmState
 
-withMemoryAction :: MemoryAction a -> VMExec stackSize a
+withMemoryAction :: Memory.Action a -> VMExec stackSize a
 withMemoryAction memoryAction =
   VMExec $ do
     thisMemory <- MTL.gets memory
-    MTL.liftIO $ Memory.runMemoryAction memoryAction thisMemory
+    MTL.liftIO $ Memory.runAction memoryAction thisMemory
 
-withRegistersAction :: RegistersAction a -> VMExec stackSize a
+withRegistersAction :: Registers.Action a -> VMExec stackSize a
 withRegistersAction registersAction =
   VMExec $ do
     vmState <- MTL.get
-    (result, newRegisters) <- MTL.liftIO $ Registers.runRegistersAction registersAction (registers vmState)
+    (result, newRegisters) <- MTL.liftIO $ Registers.runAction registersAction (registers vmState)
     MTL.put (vmState {registers = newRegisters})
     pure result
 
-withStackAction :: StackAction stackSize a -> VMExec stackSize a
+withStackAction :: Stack.Action stackSize a -> VMExec stackSize a
 withStackAction stackAction =
   VMExec $ do
     vmState <- MTL.get
-    (maybeResult, newStack) <- MTL.liftIO $ Stack.runStackAction stackAction (stack vmState)
+    (maybeResult, newStack) <- MTL.liftIO $ Stack.runAction stackAction (stack vmState)
     MTL.put (vmState {stack = newStack})
     case maybeResult of
       Left err -> MTL.throwError err
       Right result -> pure result
 
-withTimersAction :: TimersAction a -> VMExec stackSize a
+withTimersAction :: Timers.Action a -> VMExec stackSize a
 withTimersAction timersAction =
   VMExec $ do
     vmState <- MTL.get
-    let (result, newTimers) = Timers.runTimersAction timersAction (timers vmState)
+    let (result, newTimers) = Timers.runAction timersAction (timers vmState)
     MTL.put (vmState {timers = newTimers})
     pure result
 

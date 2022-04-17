@@ -4,8 +4,8 @@
 
 module VMState.Memory
   ( Memory,
-    MemoryAction,
-    runMemoryAction,
+    Action,
+    runAction,
     memoryWithLoadedProgram,
     readMemory,
     writeMemory,
@@ -29,10 +29,10 @@ type MemoryData = SizedMVector.MVector MemorySize (PrimState IO) Word8
 
 newtype Memory = Memory MemoryData
 
-newtype MemoryAction a = MemoryAction (MTL.ReaderT Memory IO a) deriving (Functor, Applicative, Monad)
+newtype Action a = Action (MTL.ReaderT Memory IO a) deriving (Functor, Applicative, Monad)
 
-runMemoryAction :: MemoryAction a -> Memory -> IO a
-runMemoryAction (MemoryAction action) memory = MTL.runReaderT action memory
+runAction :: Action a -> Memory -> IO a
+runAction (Action action) memory = MTL.runReaderT action memory
 
 memoryWithLoadedProgram :: (TypeNats.KnownNat programSize, programSize <= MemorySize) => SizedByteString programSize -> IO Memory
 memoryWithLoadedProgram programRom = do
@@ -42,15 +42,15 @@ memoryWithLoadedProgram programRom = do
   traverse_ (writeBinFromProgram programRom memory) addresses
   pure memory
 
-readMemory :: MemoryAddress -> MemoryAction Word8
+readMemory :: MemoryAddress -> Action Word8
 readMemory memoryAddress =
-  MemoryAction $ do
+  Action $ do
     Memory memoryData <- MTL.ask
     MTL.liftIO $ SizedMVector.read memoryData memoryAddress
 
-writeMemory :: MemoryAddress -> Word8 -> MemoryAction ()
+writeMemory :: MemoryAddress -> Word8 -> Action ()
 writeMemory memoryAddress byte =
-  MemoryAction $ do
+  Action $ do
     Memory memoryData <- MTL.ask
     MTL.liftIO $ SizedMVector.write memoryData memoryAddress byte
 

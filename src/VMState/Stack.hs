@@ -45,9 +45,9 @@ popStack :: Action stackSize MemoryAddress
 popStack =
   Action $ do
     stack <- MTL.get
-    case Finite.sub (nextStackAddr stack) one of
-      Left _ -> MTL.throwError "stack underflow"
-      Right stackLastElemAddr -> do
+    case subOne (nextStackAddr stack) of
+      Nothing -> MTL.throwError "stack underflow"
+      Just stackLastElemAddr -> do
         memAddress <- MTL.liftIO $ SizedBoxedMVector.read (stackData stack) stackLastElemAddr
         MTL.put $ stack {nextStackAddr = stackLastElemAddr}
         pure memAddress

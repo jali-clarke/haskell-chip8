@@ -2,7 +2,12 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module TypeNatsHelpers where
+module TypeNatsHelpers
+  ( addOne,
+    addTwo,
+    subOne,
+  )
+where
 
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
@@ -14,6 +19,12 @@ addOne n = Finite.strengthenN $ Finite.add n one
 
 addTwo :: (TypeNats.KnownNat n, n <= n + 3) => Finite n -> Maybe (Finite n)
 addTwo n = Finite.strengthenN $ Finite.add n two
+
+subOne :: Finite n -> Maybe (Finite n)
+subOne n =
+  case Finite.sub n one of
+    Left _ -> Nothing
+    Right nMinusOne -> Just nMinusOne
 
 one :: Finite 2
 one = Finite.finite 1

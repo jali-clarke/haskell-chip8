@@ -92,9 +92,16 @@ exec opCode =
     DecrementByRegisterReverse registerAddressDest registerAddressSrc -> do
       VMState.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (flip (-)) (\_ src new -> new > src)
       VMState.incrementPC
+    ShiftLeft registerAddress -> do
+      VMState.withRegistersAction $ do
+        registerValue <- Registers.readVRegister registerAddress
+        let newRegisterValue = unsafeShiftL registerValue 1
+            flagRegisterValue = unsafeShiftR (registerValue .&. 0x80) 7
+        Registers.writeVRegister registerAddress newRegisterValue
+        Registers.writeVRegister flagRegister flagRegisterValue
+      VMState.incrementPC
     _ -> unimplemented
 
--- ShiftLeft VRegisterAddress
 -- SkipNextIfRegisterNotEqualToRegister VRegisterAddress VRegisterAddress
 -- SetAddressRegisterToConst MemoryAddress
 -- JumpToAddressWithOffset MemoryAddress

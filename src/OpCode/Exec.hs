@@ -10,6 +10,7 @@ where
 import BaseTypes
 import Control.Monad (when)
 import Data.Bits (unsafeShiftL, unsafeShiftR, xor, (.&.), (.|.))
+import Data.Finite (Finite)
 import qualified Data.Finite as Finite
 import Data.Word (Word8)
 import GHC.TypeNats (type (+), type (<=))
@@ -109,9 +110,13 @@ exec opCode =
     SetAddressRegisterToConst memoryAddress -> do
       VMState.withRegistersAction $ Registers.writeAddrRegister memoryAddress
       VMState.incrementPC
+    JumpToAddressWithOffset baseMemoryAddress -> do
+      registerValue <- VMState.withRegistersAction $ Registers.readVRegister v0Register
+      case Finite.strengthenN $ Finite.add baseMemoryAddress (word8ToFinite registerValue) of
+        Nothing -> VMState.throwVMError "attempted to jump beyond memory bounds"
+        Just jumpAddress -> VMState.setPC jumpAddress
     _ -> unimplemented opCode
 
--- JumpToAddressWithOffset MemoryAddress
 -- SetToRandomWithMask VRegisterAddress Word8
 -- DrawSpriteAtCoords VRegisterAddress VRegisterAddress SpriteHeight
 -- SkipNextIfKeyPressed VRegisterAddress
@@ -142,6 +147,12 @@ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc operator s
   Registers.writeVRegister registerAddressDest newDestRegisterValue
   let flagValue = if shouldSetFlag destRegisterValue srcRegisterValue newDestRegisterValue then 0x01 else 0x00
   Registers.writeVRegister flagRegister flagValue
+
+word8ToFinite :: Word8 -> Finite 255
+word8ToFinite = Finite.finite . fromIntegral
+
+v0Register :: VRegisterAddress
+v0Register = Finite.finite 0
 
 flagRegister :: VRegisterAddress
 flagRegister = Finite.finite 15

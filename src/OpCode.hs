@@ -79,9 +79,9 @@ data OpCode
     -- will also set VF if there's a sprite collision, i.e. if a pixel got flipped from on to off
     DrawSpriteAtCoords VRegisterAddress VRegisterAddress SpriteHeight
   | -- EX9E
-    SkipNextIfKeyPressed VRegisterAddress KeyboardKey
+    SkipNextIfKeyPressed VRegisterAddress
   | -- EXA1
-    SkipNextIfKeyNotPressed VRegisterAddress KeyboardKey
+    SkipNextIfKeyNotPressed VRegisterAddress
   | -- FX07
     SetToDelayTimerValue VRegisterAddress
   | -- FX0A
@@ -150,7 +150,11 @@ decode opCodeBin =
     0xB000 -> Just $ decodeNNNOpCode JumpToAddressWithOffset opCodeBin
     0xC000 -> Just $ decodeXNNOpCode SetToRandomWithMask opCodeBin
     0xD000 -> Just $ decodeXYNOpCode DrawSpriteAtCoords opCodeBin
-    0xE000 -> undefined
+    0xE000 ->
+      case opCodeBin .&. 0x00FF of
+        0x009E -> Just $ decodeXKKOpCode SkipNextIfKeyPressed opCodeBin
+        0x00A1 -> Just $ decodeXKKOpCode SkipNextIfKeyNotPressed opCodeBin
+        _ -> Nothing
     0xF000 -> undefined
     _ -> Nothing
 

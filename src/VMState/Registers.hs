@@ -1,6 +1,10 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module VMState.Registers
   ( Registers,
+    RegistersAction,
     newRegisters,
+    runRegistersAction,
     readVRegister,
     writeVRegister,
     readAddrRegister,
@@ -9,7 +13,7 @@ module VMState.Registers
 where
 
 import BaseTypes
-import qualified Control.Monad.IO.Class as MTL
+import qualified Control.Monad.State as MTL
 import Control.Monad.Primitive (PrimState)
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
 import Data.Word (Word8)
@@ -18,23 +22,30 @@ type VRegistersData = SizedMVector.MVector NumRegisters (PrimState IO) Word8
 
 data Registers = Registers {vRegsData :: VRegistersData, addrReg :: MemoryAddress}
 
+newtype RegistersAction a = RegistersAction (MTL.StateT Registers IO a) deriving (Functor, Applicative, Monad)
+
+runRegistersAction :: RegistersAction a -> Registers -> IO (a, Registers)
+runRegistersAction (RegistersAction action) registers = MTL.runStateT action registers
+
 newRegisters :: IO Registers
 newRegisters = do
   vRegistersData <- SizedMVector.unsafeNew
   pure $ Registers {vRegsData = vRegistersData, addrReg = 0}
 
-readVRegister :: MTL.MonadIO m => Registers -> VRegisterAddress -> m (Word8, Registers)
-readVRegister registers regAddr = do
-  byte <- MTL.liftIO $ SizedMVector.read (vRegsData registers) regAddr
-  pure (byte, registers)
+readVRegister :: VRegisterAddress -> RegistersAction Word8
+readVRegister regAddr =
+  RegistersAction $ do
+    registers <- MTL.get
+    MTL.liftIO $ SizedMVector.read (vRegsData registers) regAddr
 
-writeVRegister :: MTL.MonadIO m => Registers -> VRegisterAddress -> Word8 -> m ((), Registers)
-writeVRegister registers regAddr byte = do
-  MTL.liftIO $ SizedMVector.write (vRegsData registers) regAddr byte
-  pure ((), registers)
+writeVRegister :: VRegisterAddress -> Word8 -> RegistersAction ()
+writeVRegister regAddr byte =
+  RegistersAction $ do
+    registers <- MTL.get
+    MTL.liftIO $ SizedMVector.write (vRegsData registers) regAddr byte
 
-readAddrRegister :: MTL.MonadIO m => Registers -> m (MemoryAddress, Registers)
-readAddrRegister registers = pure (addrReg registers, registers)
+readAddrRegister :: RegistersAction MemoryAddress
+readAddrRegister = RegistersAction $ fmap addrReg MTL.get
 
-writeAddrRegister :: MTL.MonadIO m => Registers -> MemoryAddress -> m ((), Registers)
-writeAddrRegister registers addrValue = pure ((), registers {addrReg = addrValue})
+writeAddrRegister :: MemoryAddress -> RegistersAction ()
+writeAddrRegister addrValue = RegistersAction $ MTL.modify (\registers -> registers {addrReg = addrValue})

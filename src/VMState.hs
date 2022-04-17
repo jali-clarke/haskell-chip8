@@ -36,7 +36,7 @@ import qualified SizedByteString
 import TypeNatsHelpers
 import VMState.Memory (Memory)
 import qualified VMState.Memory as Memory
-import VMState.Registers (Registers)
+import VMState.Registers (Registers, RegistersAction)
 import qualified VMState.Registers as Registers
 import VMState.Stack (Stack)
 import qualified VMState.Stack as Stack
@@ -86,11 +86,11 @@ withTimersAction timersAction =
 withMemoryAction :: (forall m. MTL.MonadIO m => Memory -> m a) -> VMExec stackSize a
 withMemoryAction memoryAction = VMExec $ MTL.gets memory >>= memoryAction
 
-withRegistersAction :: (forall m. MTL.MonadIO m => Registers -> m (a, Registers)) -> VMExec stackSize a
+withRegistersAction :: RegistersAction a -> VMExec stackSize a
 withRegistersAction registersAction =
   VMExec $ do
     vmState <- MTL.get
-    (result, newRegisters) <- registersAction (registers vmState)
+    (result, newRegisters) <- MTL.liftIO $ Registers.runRegistersAction registersAction (registers vmState)
     MTL.put (vmState {registers = newRegisters})
     pure result
 

@@ -7,8 +7,10 @@ module OpCode.Exec
   )
 where
 
+import Control.Monad (when)
 import OpCode.Type
 import qualified VMState
+import qualified VMState.Registers as Registers
 import qualified VMState.ScreenBuffer as ScreenBuffer
 import qualified VMState.Stack as Stack
 import GHC.TypeNats (type (+), type (<=))
@@ -18,7 +20,9 @@ exec :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2) => OpCode -> V
 exec opCode =
   case opCode of
     MachineCodeCall _ -> unimplemented
-    ClearDisplay -> VMState.withScreenBufferAction ScreenBuffer.clearBuffer *> VMState.incrementPC
+    ClearDisplay -> do
+      VMState.withScreenBufferAction ScreenBuffer.clearBuffer
+      VMState.incrementPC
     ReturnFromSubroutine -> do
       returnAddress <- VMState.withStackAction Stack.popStack
       VMState.setPC returnAddress
@@ -28,9 +32,12 @@ exec opCode =
       currentPC <- VMState.getPC
       VMState.withStackAction $ Stack.pushStack currentPC
       VMState.setPC memoryAddress
+    SkipNextIfRegisterEqualToConst registerAddress constByte -> do
+      registerValue <- VMState.withRegistersAction $ Registers.readVRegister registerAddress
+      VMState.incrementPC
+      when (registerValue == constByte) VMState.incrementPC
     _ -> unimplemented
 
--- SkipNextIfRegisterEqualToConst VRegisterAddress Word8
 -- SkipNextIfRegisterNotEqualToConst VRegisterAddress Word8
 -- SkipNextIfRegisterEqualToRegister VRegisterAddress VRegisterAddress
 -- SetToConst VRegisterAddress Word8

@@ -9,7 +9,7 @@ type MemorySize = 4096
 
 type NumRegisters = 16
 
-type MaxSpriteHeight = 4
+type MaxSpriteHeight = 16
 
 type NumKeyboardKeys = 16
 

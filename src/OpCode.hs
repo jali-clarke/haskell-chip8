@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds #-}
+
 module OpCode
   ( OpCode (..),
     decode,
@@ -5,7 +7,8 @@ module OpCode
 where
 
 import BaseTypes
-import Data.Bits (unsafeShiftR, (.&.))
+import Data.Bits (unsafeShiftL, unsafeShiftR, (.&.))
+import Data.Finite (Finite)
 import qualified Data.Finite as Finite
 import Data.Word (Word8)
 
@@ -146,7 +149,7 @@ decode opCodeBin =
     0xA000 -> Just $ decodeNNNOpCode SetAddressRegisterToConst opCodeBin
     0xB000 -> Just $ decodeNNNOpCode JumpToAddressWithOffset opCodeBin
     0xC000 -> Just $ decodeXNNOpCode SetToRandomWithMask opCodeBin
-    0xD000 -> undefined
+    0xD000 -> Just $ decodeXYNOpCode DrawSpriteAtCoords opCodeBin
     0xE000 -> undefined
     0xF000 -> undefined
     _ -> Nothing
@@ -156,12 +159,25 @@ decodeNNNOpCode toDecodedType opCodeBin = toDecodedType . Finite.finite . fromIn
 
 decodeXNNOpCode :: (VRegisterAddress -> Word8 -> a) -> OpCodeBin -> a
 decodeXNNOpCode toDecodedType opCodeBin =
-  let targetRegister = Finite.finite . fromIntegral $ unsafeShiftR (opCodeBin .&. 0x0F00) 8
+  let targetRegister = getNybble (Finite.finite 8) opCodeBin
       byte = fromIntegral $ opCodeBin .&. 0x00FF
    in toDecodedType targetRegister byte
 
 decodeXYKOpCode :: (VRegisterAddress -> VRegisterAddress -> a) -> OpCodeBin -> a
 decodeXYKOpCode toDecodedType opCodeBin =
-  let targetRegisterX = Finite.finite . fromIntegral $ unsafeShiftR (opCodeBin .&. 0x0F00) 8
-      targetRegisterY = Finite.finite . fromIntegral $ unsafeShiftR (opCodeBin .&. 0x00F0) 4
+  let targetRegisterX = getNybble (Finite.finite 8) opCodeBin
+      targetRegisterY = getNybble (Finite.finite 4) opCodeBin
    in toDecodedType targetRegisterX targetRegisterY
+
+decodeXYNOpCode :: (VRegisterAddress -> VRegisterAddress -> SpriteHeight -> a) -> OpCodeBin -> a
+decodeXYNOpCode toDecodedType opCodeBin =
+  let targetRegisterX = getNybble (Finite.finite 8) opCodeBin
+      targetRegisterY = getNybble (Finite.finite 4) opCodeBin
+      spriteHeight = getNybble (Finite.finite 0) opCodeBin
+   in toDecodedType targetRegisterX targetRegisterY spriteHeight
+
+getNybble :: Finite 16 -> OpCodeBin -> Finite 16
+getNybble offset opCodeBin =
+  let shiftAmount = fromIntegral (Finite.getFinite offset)
+      mask = unsafeShiftL 0x000F shiftAmount
+   in Finite.finite . fromIntegral $ unsafeShiftR (opCodeBin .&. mask) shiftAmount

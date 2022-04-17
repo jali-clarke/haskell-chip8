@@ -27,6 +27,7 @@ library:
   - finite-typelits
   - mtl
   - primitive
+  - typelits-witnesses
   - vector
   - vector-sized
   ghc-options:

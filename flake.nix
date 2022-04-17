@@ -11,6 +11,7 @@
         ghc = pkgs.haskell.packages.ghc8107.ghcWithPackages (
           ps: [
             ps.sdl2
+            ps.typelits-witnesses
             ps.vector-sized
           ]
         );

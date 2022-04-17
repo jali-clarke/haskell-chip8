@@ -10,6 +10,7 @@ module VMState.Memory
 where
 
 import BaseTypes
+import qualified Control.Monad.IO.Class as MTL
 import Control.Monad.Primitive (PrimState)
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
@@ -25,11 +26,11 @@ type MemoryData = SizedMVector.MVector MemorySize (PrimState IO) Word8
 
 newtype Memory = Memory MemoryData
 
-readMemory :: Memory -> MemoryAddress -> IO Word8
-readMemory (Memory memData) memAddr = SizedMVector.read memData memAddr
+readMemory :: MTL.MonadIO m => Memory -> MemoryAddress -> m Word8
+readMemory (Memory memData) memAddr = MTL.liftIO $ SizedMVector.read memData memAddr
 
-writeMemory :: Memory -> MemoryAddress -> Word8 -> IO ()
-writeMemory (Memory memData) memAddr byte = SizedMVector.write memData memAddr byte
+writeMemory :: MTL.MonadIO m => Memory -> MemoryAddress -> Word8 -> m ()
+writeMemory (Memory memData) memAddr byte = MTL.liftIO $ SizedMVector.write memData memAddr byte
 
 memoryWithLoadedProgram :: (TypeNats.KnownNat programSize, programSize <= MemorySize) => SizedByteString programSize -> IO Memory
 memoryWithLoadedProgram programRom = do

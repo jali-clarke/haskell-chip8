@@ -10,7 +10,7 @@ module VMState
     VMExec,
     withNewVMState,
     runVM,
-    withMemory,
+    withMemoryAction,
     getsRegisters,
     withRegisters,
     modifyRegisters,
@@ -84,8 +84,8 @@ getsTimers projectTimers = VMExec $ MTL.gets (projectTimers . timers)
 modifyTimers :: (Timers -> Timers) -> VMExec stackSize ()
 modifyTimers timersUpdate = VMExec $ MTL.modify (\vmState -> vmState {timers = timersUpdate (timers vmState)})
 
-withMemory :: (Memory -> IO a) -> VMExec stackSize a
-withMemory memoryAction = VMExec $ MTL.gets memory >>= MTL.liftIO . memoryAction
+withMemoryAction :: (forall m. MTL.MonadIO m => Memory -> m a) -> VMExec stackSize a
+withMemoryAction memoryAction = VMExec $ MTL.gets memory >>= memoryAction
 
 getsRegisters :: (Registers -> a) -> VMExec stackSize a
 getsRegisters projectRegisters = VMExec $ MTL.gets (projectRegisters . registers)
@@ -111,7 +111,7 @@ getOpCodeBin = do
   case addOne currentPC of
     Nothing -> VMExec $ MTL.throwError "program counter (pc) is misaligned; pc + 1 is out of the address range"
     Just currentPCPlusOne ->
-      withMemory $ \memoryState -> do
+      withMemoryAction $ \memoryState -> do
         -- opcodes stored big-endian
         op0 <- fmap fromIntegral $ Memory.readMemory memoryState currentPC
         op1 <- fmap fromIntegral $ Memory.readMemory memoryState currentPCPlusOne

@@ -10,6 +10,7 @@
 
         ghc = pkgs.haskell.packages.ghc8107.ghcWithPackages (
           ps: [
+            ps.optparse-applicative
             ps.sdl2
             ps.typelits-witnesses
             ps.vector-sized
@@ -21,7 +22,7 @@
         '';
       in
       {
-        defaultPackage = pkgs.haskellPackages.callCabal2nix "haskell-chip-8" ./. { };
+        defaultPackage = pkgs.haskellPackages.callCabal2nix "haskell-chip8" ./. { };
         devShell = pkgs.mkShell {
           buildInputs = [
             pkgs.nixpkgs-fmt

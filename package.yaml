@@ -8,12 +8,14 @@ dependencies:
 - base
 
 executables:
-  haskell-chip-8:
+  haskell-chip8:
     main: Main.hs
     source-dirs:
     - app
     dependencies:
+    - base
     - haskell-chip8
+    - optparse-applicative
     ghc-options:
     - -O2
     - -Wall

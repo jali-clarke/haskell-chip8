@@ -7,8 +7,10 @@ module OpCode.Exec
   )
 where
 
+import BaseTypes
 import Control.Monad (when)
-import Data.Bits ((.|.))
+import Data.Bits ((.|.), (.&.))
+import Data.Word (Word8)
 import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
 import OpCode.Type
@@ -64,13 +66,13 @@ exec opCode =
         Registers.writeVRegister registerAddressDest registerValue
       VMState.incrementPC
     OrRegisterInplace registerAddressDest registerAddressSrc -> do
-      VMState.withRegistersAction $ do
-        srcRegisterValue <- Registers.readVRegister registerAddressSrc
-        Registers.modifyVRegister registerAddressDest (\destRegisterValue -> destRegisterValue .|. srcRegisterValue)
+      VMState.withRegistersAction $ inplaceBinaryOperation registerAddressDest registerAddressSrc (.|.)
+      VMState.incrementPC
+    AndRegisterInplace registerAddressDest registerAddressSrc -> do
+      VMState.withRegistersAction $ inplaceBinaryOperation registerAddressDest registerAddressSrc (.&.)
       VMState.incrementPC
     _ -> unimplemented
 
--- AndRegisterInplace VRegisterAddress VRegisterAddress
 -- XorRegisterInplace VRegisterAddress VRegisterAddress
 -- IncrementByRegister VRegisterAddress VRegisterAddress
 -- DecrementByRegister VRegisterAddress VRegisterAddress
@@ -96,3 +98,8 @@ exec opCode =
 
 unimplemented :: VMState.Action stackSize ()
 unimplemented = pure ()
+
+inplaceBinaryOperation :: VRegisterAddress -> VRegisterAddress -> (Word8 -> Word8 -> Word8) -> Registers.Action ()
+inplaceBinaryOperation registerAddressDest registerAddressSrc operator = do
+  srcRegisterValue <- Registers.readVRegister registerAddressSrc
+  Registers.modifyVRegister registerAddressDest (\destRegisterValue -> operator destRegisterValue srcRegisterValue)

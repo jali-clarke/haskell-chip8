@@ -35,7 +35,7 @@ import qualified Control.Monad.Except as Except
 import Control.Monad.Primitive (PrimState)
 import Control.Monad.State.Strict (StateT)
 import qualified Control.Monad.State.Strict as State
-import Data.Bits (unsafeShiftL, (.&.))
+import Data.Bits (unsafeShiftL, (.|.))
 import Data.ByteString (ByteString)
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
@@ -177,7 +177,7 @@ getOpCodeBin = do
       -- opcodes stored big-endian
       op0 <- fmap fromIntegral (readMemory currentPC)
       op1 <- fmap fromIntegral (readMemory currentPCPlusOne)
-      pure $ unsafeShiftL op0 8 .&. op1
+      pure $ unsafeShiftL op0 8 .|. op1
 
 incrementPC :: VMExec stackSize ()
 incrementPC = do

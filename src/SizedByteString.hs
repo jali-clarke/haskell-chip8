@@ -3,12 +3,13 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module SizedByteString (
-  SizedByteString,
-  withSized,
-  byteAt,
-  length'
-) where
+module SizedByteString
+  ( SizedByteString,
+    withSized,
+    byteAt,
+    length',
+  )
+where
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as ByteString

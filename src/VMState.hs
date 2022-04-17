@@ -40,7 +40,7 @@ import VMState.Registers (Registers, RegistersAction)
 import qualified VMState.Registers as Registers
 import VMState.Stack (Stack)
 import qualified VMState.Stack as Stack
-import VMState.Timers (Timers)
+import VMState.Timers (Timers, TimersAction)
 import qualified VMState.Timers as Timers
 
 type ProgramCounter = MemoryAddress
@@ -75,14 +75,6 @@ withNewVMState maxStackSize programRom callback =
 runVM :: VMState stackSize -> VMExec stackSize a -> IO (Either String a, VMState stackSize)
 runVM vmState (VMExec action) = MTL.runStateT (MTL.runExceptT action) vmState
 
-withTimersAction :: (Timers -> (a, Timers)) -> VMExec stackSize a
-withTimersAction timersAction =
-  VMExec $ do
-    vmState <- MTL.get
-    let (result, newTimers) = timersAction (timers vmState)
-    MTL.put (vmState {timers = newTimers})
-    pure result
-
 withMemoryAction :: MemoryAction a -> VMExec stackSize a
 withMemoryAction memoryAction =
   VMExec $ do
@@ -103,6 +95,14 @@ withStackAction stackAction =
     vmState <- MTL.get
     (result, newStack) <- stackAction (stack vmState)
     MTL.put (vmState {stack = newStack})
+    pure result
+
+withTimersAction :: TimersAction a -> VMExec stackSize a
+withTimersAction timersAction =
+  VMExec $ do
+    vmState <- MTL.get
+    let (result, newTimers) = Timers.runTimersAction timersAction (timers vmState)
+    MTL.put (vmState {timers = newTimers})
     pure result
 
 getOpCodeBin :: VMExec stackSize OpCodeBin

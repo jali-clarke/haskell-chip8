@@ -7,21 +7,27 @@
 
 module VMState
   ( VMExec,
+    runVM,
+
     readMemory,
     writeMemory,
+
     readVRegister,
     writeVRegister,
     readAddrRegister,
     writeAddrRegister,
+
     popStack,
     pushStack,
+
     getDelayTimer,
     setDelayTimer,
     getSoundTimer,
     setSoundTimer,
+
     getOpCode,
     incrementPC,
-    setPC
+    setPC,
   )
 where
 
@@ -69,7 +75,10 @@ data Program programSize = Program {rom :: Vector.Vector programSize OpCodeBin, 
 
 data VMState stackSize programSize = VMState {memory :: Memory, stack :: Stack stackSize, registers :: Registers, timers :: Timers, program :: Program programSize}
 
-newtype VMExec stackSize programSize a = VMExec (StateT (VMState stackSize programSize) (ExceptT String IO) a) deriving (Functor, Applicative, Monad)
+newtype VMExec stackSize programSize a = VMExec (ExceptT String (StateT (VMState stackSize programSize) IO) a) deriving (Functor, Applicative, Monad)
+
+runVM :: VMState stackSize programSize -> VMExec stackSize programSize a -> IO (Either String a, VMState stackSize programSize)
+runVM vmState (VMExec action) = State.runStateT (Except.runExceptT action) vmState
 
 readMemory :: MemoryAddress -> VMExec stackSize programSize Word8
 readMemory memAddr = withMemoryData $ \memoryData -> MVector.read memoryData memAddr

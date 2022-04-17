@@ -11,10 +11,9 @@ module VMState
     withNewVMState,
     runVM,
     withMemory,
-    readVRegister,
-    writeVRegister,
-    readAddrRegister,
-    writeAddrRegister,
+    getsRegisters,
+    withRegisters,
+    modifyRegisters,
     popStack,
     pushStack,
     getsTimers,
@@ -39,26 +38,22 @@ import Data.Proxy (Proxy (..))
 import Data.Type.Equality ((:~:) (..))
 import qualified Data.Vector.Mutable as BoxedMVector
 import qualified Data.Vector.Mutable.Sized as SizedBoxedMVector
-import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
-import Data.Word (Word8)
 import qualified GHC.TypeLits.Compare as TypeNats
 import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
 import qualified SizedByteString
 import VMState.Memory (Memory)
 import qualified VMState.Memory as Memory
+import VMState.Registers (Registers)
+import qualified VMState.Registers as Registers
 import VMState.Timers (Timers)
 import qualified VMState.Timers as Timers
-
-type VRegistersData = SizedMVector.MVector NumRegisters (PrimState IO) Word8
 
 type StackData stackSize = SizedBoxedMVector.MVector stackSize (PrimState IO) MemoryAddress
 
 type ProgramCounter = MemoryAddress
 
 type StackAddress stackSize = Finite stackSize
-
-data Registers = Registers {vRegsData :: VRegistersData, addrReg :: MemoryAddress}
 
 data Stack stackSize = Stack {stackData :: StackData stackSize, nextStackAddr :: StackAddress stackSize}
 
@@ -79,12 +74,12 @@ withNewVMState maxStackSize programRom callback =
             loadedMemory <- Memory.memoryWithLoadedProgram sizedProgramRom
             unsizedStackData <- BoxedMVector.unsafeNew maxStackSize
             SizedBoxedMVector.withSized unsizedStackData $ \thisStackData -> do
-              vRegistersData <- SizedMVector.unsafeNew
+              theseRegisters <- Registers.newRegisters
               let newState =
                     VMState
                       { memory = loadedMemory,
                         stack = Stack {stackData = thisStackData, nextStackAddr = Finite.finite 0},
-                        registers = Registers {vRegsData = vRegistersData, addrReg = 0},
+                        registers = theseRegisters,
                         timers = Timers.newTimers,
                         pc = Finite.finite 0
                       }
@@ -92,18 +87,6 @@ withNewVMState maxStackSize programRom callback =
 
 runVM :: VMState stackSize -> VMExec stackSize a -> IO (Either String a, VMState stackSize)
 runVM vmState (VMExec action) = State.runStateT (Except.runExceptT action) vmState
-
-readVRegister :: VRegisterAddress -> VMExec stackSize Word8
-readVRegister regNumber = withVRegistersData $ \vRegistersData -> SizedMVector.read vRegistersData regNumber
-
-writeVRegister :: VRegisterAddress -> Word8 -> VMExec stackSize ()
-writeVRegister regNumber byte = withVRegistersData $ \vRegistersData -> SizedMVector.write vRegistersData regNumber byte
-
-readAddrRegister :: VMExec stackSize MemoryAddress
-readAddrRegister = VMExec $ State.gets (addrReg . registers)
-
-writeAddrRegister :: MemoryAddress -> VMExec stackSize ()
-writeAddrRegister addrValue = VMExec $ State.modify (\vmState -> vmState {registers = (registers vmState) {addrReg = addrValue}})
 
 popStack :: VMExec stackSize MemoryAddress
 popStack =
@@ -159,8 +142,14 @@ setPC nextPC = VMExec $ State.modify (\vmState -> vmState {pc = nextPC})
 withMemory :: (Memory -> IO a) -> VMExec stackSize a
 withMemory memoryAction = VMExec $ State.gets memory >>= State.liftIO . memoryAction
 
-withVRegistersData :: (VRegistersData -> IO a) -> VMExec stackSize a
-withVRegistersData vRegistersAction = VMExec $ State.gets (vRegsData . registers) >>= State.liftIO . vRegistersAction
+getsRegisters :: (Registers -> a) -> VMExec stackSize a
+getsRegisters projectRegisters = VMExec $ State.gets (projectRegisters . registers)
+
+withRegisters :: (Registers -> IO a) -> VMExec stackSize a
+withRegisters registersAction = VMExec $ State.gets registers >>= State.liftIO . registersAction
+
+modifyRegisters :: (Registers -> Registers) -> VMExec stackSize ()
+modifyRegisters registersUpdate = VMExec $ State.modify (\vmState -> vmState {registers = registersUpdate (registers vmState)})
 
 setNextStackAddr :: State.MonadState (VMState stackSize) m => StackAddress stackSize -> m ()
 setNextStackAddr newNextStackAddr = State.modify (\vmState -> vmState {stack = (stack vmState) {nextStackAddr = newNextStackAddr}})

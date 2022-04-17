@@ -14,8 +14,7 @@ module VMState
     getsRegisters,
     withRegisters,
     modifyRegisters,
-    popStack,
-    pushStack,
+    withStackAction,
     getsTimers,
     modifyTimers,
     getOpCodeBin,
@@ -27,37 +26,29 @@ where
 import BaseTypes
 import Control.Monad.Except (ExceptT)
 import qualified Control.Monad.Except as Except
-import Control.Monad.Primitive (PrimState)
 import Control.Monad.State.Strict (StateT)
 import qualified Control.Monad.State.Strict as State
 import Data.Bits (unsafeShiftL, (.|.))
 import Data.ByteString (ByteString)
-import Data.Finite (Finite)
 import qualified Data.Finite as Finite
 import Data.Proxy (Proxy (..))
 import Data.Type.Equality ((:~:) (..))
-import qualified Data.Vector.Mutable as BoxedMVector
-import qualified Data.Vector.Mutable.Sized as SizedBoxedMVector
 import qualified GHC.TypeLits.Compare as TypeNats
-import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
 import qualified SizedByteString
+import TypeNatsHelpers
 import VMState.Memory (Memory)
 import qualified VMState.Memory as Memory
 import VMState.Registers (Registers)
 import qualified VMState.Registers as Registers
+import VMState.Stack (Stack)
+import qualified VMState.Stack as Stack
 import VMState.Timers (Timers)
 import qualified VMState.Timers as Timers
 
-type StackData stackSize = SizedBoxedMVector.MVector stackSize (PrimState IO) MemoryAddress
-
 type ProgramCounter = MemoryAddress
 
-type StackAddress stackSize = Finite stackSize
-
-data Stack stackSize = Stack {stackData :: StackData stackSize, nextStackAddr :: StackAddress stackSize}
-
-data VMState stackSize = VMState {memory :: Memory, stack :: (Stack stackSize), registers :: Registers, timers :: Timers, pc :: MemoryAddress}
+data VMState stackSize = VMState {memory :: Memory, stack :: Stack stackSize, registers :: Registers, timers :: Timers, pc :: MemoryAddress}
 
 newtype VMExec stackSize a = VMExec (ExceptT String (StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
 
@@ -72,14 +63,13 @@ withNewVMState maxStackSize programRom callback =
           Nothing -> callback (Left "program rom is too large")
           Just Refl -> do
             loadedMemory <- Memory.memoryWithLoadedProgram sizedProgramRom
-            unsizedStackData <- BoxedMVector.unsafeNew maxStackSize
-            SizedBoxedMVector.withSized unsizedStackData $ \thisStackData -> do
-              theseRegisters <- Registers.newRegisters
+            Stack.withNewStack maxStackSize $ \newStack -> do
+              newRegisters <- Registers.newRegisters
               let newState =
                     VMState
                       { memory = loadedMemory,
-                        stack = Stack {stackData = thisStackData, nextStackAddr = Finite.finite 0},
-                        registers = theseRegisters,
+                        stack = newStack,
+                        registers = newRegisters,
                         timers = Timers.newTimers,
                         pc = Finite.finite 0
                       }
@@ -87,28 +77,6 @@ withNewVMState maxStackSize programRom callback =
 
 runVM :: VMState stackSize -> VMExec stackSize a -> IO (Either String a, VMState stackSize)
 runVM vmState (VMExec action) = State.runStateT (Except.runExceptT action) vmState
-
-popStack :: VMExec stackSize MemoryAddress
-popStack =
-  VMExec $ do
-    stackState <- State.gets stack
-    case Finite.sub (nextStackAddr stackState) one of
-      Left _ -> Except.throwError "stack underflow"
-      Right stackLastElemAddr -> do
-        memAddress <- State.liftIO $ SizedBoxedMVector.read (stackData stackState) stackLastElemAddr
-        setNextStackAddr stackLastElemAddr
-        pure memAddress
-
-pushStack :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2) => MemoryAddress -> VMExec stackSize ()
-pushStack returnAddr =
-  VMExec $ do
-    stackState <- State.gets stack
-    let newStackLastElemAddr = nextStackAddr stackState
-    case addOne newStackLastElemAddr of
-      Nothing -> Except.throwError "stack overflow"
-      Just newStackNextElemAddr -> do
-        State.liftIO $ SizedBoxedMVector.write (stackData stackState) newStackLastElemAddr returnAddr
-        setNextStackAddr newStackNextElemAddr
 
 getsTimers :: (Timers -> a) -> VMExec stackSize a
 getsTimers projectTimers = VMExec $ State.gets (projectTimers . timers)
@@ -128,8 +96,13 @@ withRegisters registersAction = VMExec $ State.gets registers >>= State.liftIO .
 modifyRegisters :: (Registers -> Registers) -> VMExec stackSize ()
 modifyRegisters registersUpdate = VMExec $ State.modify (\vmState -> vmState {registers = registersUpdate (registers vmState)})
 
-setNextStackAddr :: State.MonadState (VMState stackSize) m => StackAddress stackSize -> m ()
-setNextStackAddr newNextStackAddr = State.modify (\vmState -> vmState {stack = (stack vmState) {nextStackAddr = newNextStackAddr}})
+withStackAction :: (forall m. (Except.MonadIO m, Except.MonadError String m) => Stack stackSize -> m (a, Stack stackSize)) -> VMExec stackSize a
+withStackAction stackAction =
+  VMExec $ do
+    vmState <- State.get
+    (result, newStack) <- stackAction (stack vmState)
+    State.put (vmState {stack = newStack})
+    pure result
 
 getOpCodeBin :: VMExec stackSize OpCodeBin
 getOpCodeBin = do
@@ -153,15 +126,3 @@ incrementPC = do
 
 setPC :: ProgramCounter -> VMExec stackSize ()
 setPC nextPC = VMExec $ State.modify (\vmState -> vmState {pc = nextPC})
-
-addOne :: (TypeNats.KnownNat n, n <= n + 2) => Finite n -> Maybe (Finite n)
-addOne n = Finite.strengthenN $ Finite.add n one
-
-addTwo :: (TypeNats.KnownNat n, n <= n + 3) => Finite n -> Maybe (Finite n)
-addTwo n = Finite.strengthenN $ Finite.add n two
-
-one :: Finite 2
-one = Finite.finite 1
-
-two :: Finite 3
-two = Finite.finite 2

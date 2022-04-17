@@ -46,12 +46,10 @@ import qualified Data.Vector.Mutable.Sized as SizedBoxedMVector
 import qualified Data.Vector.Unboxed as Vector
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
 import qualified Data.Vector.Unboxed.Sized as SizedVector
-import Data.Word (Word16, Word8)
+import Data.Word (Word8)
 import qualified GHC.TypeLits.Compare as TypeNats
 import GHC.TypeNats (type (*), type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
-
-type OpCodeBin = Word16
 
 type MemoryData = SizedMVector.MVector MemorySize (PrimState IO) Word8
 

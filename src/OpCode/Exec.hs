@@ -136,13 +136,11 @@ exec opCode =
       registerValue <- VMState.withRegistersAction $ Registers.readVRegister registerAddress
       VMState.withTimersAction $ Timers.setSoundTimer registerValue
       VMState.incrementPC
-    _ -> unimplemented opCode
-
--- IncrementAddressRegisterByRegister VRegisterAddress
--- GetLetterSpriteAddress VRegisterAddress
--- StoreBinaryCodedDecimalRep VRegisterAddress
--- DumpRegisters VRegisterAddress
--- LoadRegisters VRegisterAddress
+    IncrementAddressRegisterByRegister _ -> unimplemented opCode
+    GetLetterSpriteAddress _ -> unimplemented opCode
+    StoreBinaryCodedDecimalRep _ -> unimplemented opCode
+    DumpRegisters _ -> unimplemented opCode
+    LoadRegisters _ -> unimplemented opCode
 
 unimplemented :: OpCode -> VMState.Action stackSize ()
 unimplemented opCode = VMState.throwVMError $ "unimplemented opCode: " <> show opCode

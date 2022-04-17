@@ -78,9 +78,11 @@ exec opCode =
     IncrementByRegister registerAddressDest registerAddressSrc -> do
       VMState.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (+) (\old new -> new < old)
       VMState.incrementPC
+    DecrementByRegister registerAddressDest registerAddressSrc -> do
+      VMState.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (-) (\old new -> new > old)
+      VMState.incrementPC
     _ -> unimplemented
 
--- DecrementByRegister VRegisterAddress VRegisterAddress
 -- ShiftRight VRegisterAddress
 -- DecrementByRegisterReverse VRegisterAddress VRegisterAddress
 -- ShiftLeft VRegisterAddress

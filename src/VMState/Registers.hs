@@ -9,6 +9,7 @@ module VMState.Registers
 where
 
 import BaseTypes
+import qualified Control.Monad.IO.Class as MTL
 import Control.Monad.Primitive (PrimState)
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
 import Data.Word (Word8)
@@ -22,14 +23,18 @@ newRegisters = do
   vRegistersData <- SizedMVector.unsafeNew
   pure $ Registers {vRegsData = vRegistersData, addrReg = 0}
 
-readVRegister :: Registers -> VRegisterAddress -> IO Word8
-readVRegister registers regAddr = SizedMVector.read (vRegsData registers) regAddr
+readVRegister :: MTL.MonadIO m => Registers -> VRegisterAddress -> m (Word8, Registers)
+readVRegister registers regAddr = do
+  byte <- MTL.liftIO $ SizedMVector.read (vRegsData registers) regAddr
+  pure (byte, registers)
 
-writeVRegister :: Registers -> VRegisterAddress -> Word8 -> IO ()
-writeVRegister registers regAddr byte = SizedMVector.write (vRegsData registers) regAddr byte
+writeVRegister :: MTL.MonadIO m => Registers -> VRegisterAddress -> Word8 -> m ((), Registers)
+writeVRegister registers regAddr byte = do
+  MTL.liftIO $ SizedMVector.write (vRegsData registers) regAddr byte
+  pure ((), registers)
 
-readAddrRegister :: Registers -> MemoryAddress
-readAddrRegister = addrReg
+readAddrRegister :: MTL.MonadIO m => Registers -> m (MemoryAddress, Registers)
+readAddrRegister registers = pure (addrReg registers, registers)
 
-writeAddrRegister :: Registers -> MemoryAddress -> Registers
-writeAddrRegister registers addrValue = registers {addrReg = addrValue}
+writeAddrRegister :: MTL.MonadIO m => Registers -> MemoryAddress -> m ((), Registers)
+writeAddrRegister registers addrValue = pure ((), registers {addrReg = addrValue})

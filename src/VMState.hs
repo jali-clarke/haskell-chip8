@@ -11,9 +11,7 @@ module VMState
     withNewVMState,
     runVM,
     withMemoryAction,
-    getsRegisters,
-    withRegisters,
-    modifyRegisters,
+    withRegistersAction,
     withStackAction,
     getsTimers,
     modifyTimers,
@@ -87,14 +85,13 @@ modifyTimers timersUpdate = VMExec $ MTL.modify (\vmState -> vmState {timers = t
 withMemoryAction :: (forall m. MTL.MonadIO m => Memory -> m a) -> VMExec stackSize a
 withMemoryAction memoryAction = VMExec $ MTL.gets memory >>= memoryAction
 
-getsRegisters :: (Registers -> a) -> VMExec stackSize a
-getsRegisters projectRegisters = VMExec $ MTL.gets (projectRegisters . registers)
-
-withRegisters :: (Registers -> IO a) -> VMExec stackSize a
-withRegisters registersAction = VMExec $ MTL.gets registers >>= MTL.liftIO . registersAction
-
-modifyRegisters :: (Registers -> Registers) -> VMExec stackSize ()
-modifyRegisters registersUpdate = VMExec $ MTL.modify (\vmState -> vmState {registers = registersUpdate (registers vmState)})
+withRegistersAction :: (forall m. MTL.MonadIO m => Registers -> m (a, Registers)) -> VMExec stackSize a
+withRegistersAction registersAction =
+  VMExec $ do
+    vmState <- MTL.get
+    (result, newRegisters) <- registersAction (registers vmState)
+    MTL.put (vmState {registers = newRegisters})
+    pure result
 
 withStackAction :: (forall m. (MTL.MonadIO m, MTL.MonadError String m) => Stack stackSize -> m (a, Stack stackSize)) -> VMExec stackSize a
 withStackAction stackAction =

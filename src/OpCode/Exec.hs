@@ -9,7 +9,7 @@ where
 
 import BaseTypes
 import Control.Monad (when)
-import Data.Bits (xor, (.&.), (.|.))
+import Data.Bits (unsafeShiftR, xor, (.&.), (.|.))
 import qualified Data.Finite as Finite
 import Data.Word (Word8)
 import GHC.TypeNats (type (+), type (<=))
@@ -81,9 +81,16 @@ exec opCode =
     DecrementByRegister registerAddressDest registerAddressSrc -> do
       VMState.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (-) (\old new -> new > old)
       VMState.incrementPC
+    ShiftRight registerAddress -> do
+      VMState.withRegistersAction $ do
+        registerValue <- Registers.readVRegister registerAddress
+        let newRegisterValue = unsafeShiftR registerValue 1
+            flagRegisterValue = registerValue .&. 0x01
+        Registers.writeVRegister registerAddress newRegisterValue
+        Registers.writeVRegister flagRegister flagRegisterValue
+      VMState.incrementPC
     _ -> unimplemented
 
--- ShiftRight VRegisterAddress
 -- DecrementByRegisterReverse VRegisterAddress VRegisterAddress
 -- ShiftLeft VRegisterAddress
 -- SkipNextIfRegisterNotEqualToRegister VRegisterAddress VRegisterAddress

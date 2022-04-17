@@ -116,6 +116,21 @@ getsTimers projectTimers = VMExec $ State.gets (projectTimers . timers)
 modifyTimers :: (Timers -> Timers) -> VMExec stackSize ()
 modifyTimers timersUpdate = VMExec $ State.modify (\vmState -> vmState {timers = timersUpdate (timers vmState)})
 
+withMemory :: (Memory -> IO a) -> VMExec stackSize a
+withMemory memoryAction = VMExec $ State.gets memory >>= State.liftIO . memoryAction
+
+getsRegisters :: (Registers -> a) -> VMExec stackSize a
+getsRegisters projectRegisters = VMExec $ State.gets (projectRegisters . registers)
+
+withRegisters :: (Registers -> IO a) -> VMExec stackSize a
+withRegisters registersAction = VMExec $ State.gets registers >>= State.liftIO . registersAction
+
+modifyRegisters :: (Registers -> Registers) -> VMExec stackSize ()
+modifyRegisters registersUpdate = VMExec $ State.modify (\vmState -> vmState {registers = registersUpdate (registers vmState)})
+
+setNextStackAddr :: State.MonadState (VMState stackSize) m => StackAddress stackSize -> m ()
+setNextStackAddr newNextStackAddr = State.modify (\vmState -> vmState {stack = (stack vmState) {nextStackAddr = newNextStackAddr}})
+
 getOpCodeBin :: VMExec stackSize OpCodeBin
 getOpCodeBin = do
   vmState <- VMExec State.get
@@ -138,21 +153,6 @@ incrementPC = do
 
 setPC :: ProgramCounter -> VMExec stackSize ()
 setPC nextPC = VMExec $ State.modify (\vmState -> vmState {pc = nextPC})
-
-withMemory :: (Memory -> IO a) -> VMExec stackSize a
-withMemory memoryAction = VMExec $ State.gets memory >>= State.liftIO . memoryAction
-
-getsRegisters :: (Registers -> a) -> VMExec stackSize a
-getsRegisters projectRegisters = VMExec $ State.gets (projectRegisters . registers)
-
-withRegisters :: (Registers -> IO a) -> VMExec stackSize a
-withRegisters registersAction = VMExec $ State.gets registers >>= State.liftIO . registersAction
-
-modifyRegisters :: (Registers -> Registers) -> VMExec stackSize ()
-modifyRegisters registersUpdate = VMExec $ State.modify (\vmState -> vmState {registers = registersUpdate (registers vmState)})
-
-setNextStackAddr :: State.MonadState (VMState stackSize) m => StackAddress stackSize -> m ()
-setNextStackAddr newNextStackAddr = State.modify (\vmState -> vmState {stack = (stack vmState) {nextStackAddr = newNextStackAddr}})
 
 addOne :: (TypeNats.KnownNat n, n <= n + 2) => Finite n -> Maybe (Finite n)
 addOne n = Finite.strengthenN $ Finite.add n one

@@ -4,7 +4,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE NoStarIsType #-}
 
 module VMState
   ( VMState,
@@ -47,7 +46,7 @@ import qualified Data.Vector.Mutable.Sized as SizedBoxedMVector
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
 import Data.Word (Word8)
 import qualified GHC.TypeLits.Compare as TypeNats
-import GHC.TypeNats (type (*), type (+), type (<=))
+import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
 import SizedByteString (SizedByteString)
 import qualified SizedByteString
@@ -79,11 +78,11 @@ newtype VMExec stackSize a = VMExec (ExceptT String (StateT (VMState stackSize) 
 withNewVMState :: Int -> ByteString -> (forall stackSize. Either String (VMState stackSize) -> IO r) -> IO r
 withNewVMState maxStackSize programRom callback =
   SizedByteString.withSized programRom $ \sizedProgramRom -> do
-    let numOpCodes = SizedByteString.length' sizedProgramRom
-    case TypeNats.sameNat numOpCodes (Proxy :: Proxy 0) of
-      Nothing -> callback (Left "program is empty")
-      Just Refl ->
-        case TypeNats.isLE (double numOpCodes) (Proxy :: Proxy MemorySize) of
+    let byteStringSize = SizedByteString.length' sizedProgramRom
+    case TypeNats.sameNat byteStringSize (Proxy :: Proxy 0) of
+      Just Refl -> callback (Left "program is empty")
+      Nothing ->
+        case TypeNats.isLE byteStringSize (Proxy :: Proxy MemorySize) of
           Nothing -> callback (Left "program rom is too large")
           Just Refl -> do
             memoryData <- memoryDataWithLoadedProg sizedProgramRom
@@ -202,9 +201,6 @@ writeOpCodeBinFromProg programRom memoryData programAddress =
   let programByte = SizedByteString.byteAt programRom programAddress
       memoryAddress = Finite.finite (Finite.getFinite programAddress)
    in SizedMVector.write memoryData memoryAddress programByte
-
-double :: Proxy n -> Proxy (2 * n)
-double _ = Proxy
 
 addOne :: (TypeNats.KnownNat n, n <= n + 2) => Finite n -> Maybe (Finite n)
 addOne n = Finite.strengthenN $ Finite.add n one

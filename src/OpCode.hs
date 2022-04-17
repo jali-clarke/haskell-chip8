@@ -5,6 +5,8 @@ module OpCode
 where
 
 import BaseTypes
+import Data.Bits (unsafeShiftR, (.&.))
+import qualified Data.Finite as Finite
 import Data.Word (Word8)
 
 -- see https://en.wikipedia.org/wiki/CHIP-8#Opcode_table
@@ -108,4 +110,26 @@ data OpCode
     LoadRegisters VRegisterAddress
 
 decode :: OpCodeBin -> Maybe OpCode
-decode = undefined
+decode opCodeBin =
+  case unsafeShiftR opCodeBin 12 of
+    0x0 ->
+      case opCodeBin of
+        0x00E0 -> Just ClearDisplay
+        0x00EE -> Just ReturnFromSubroutine
+        _ -> Just . MachineCodeCall . Finite.finite . fromIntegral $ opCodeBin .&. 0x0FFF
+    0x1 -> undefined
+    0x2 -> undefined
+    0x3 -> undefined
+    0x4 -> undefined
+    0x5 -> undefined
+    0x6 -> undefined
+    0x7 -> undefined
+    0x8 -> undefined
+    0x9 -> undefined
+    0xA -> undefined
+    0xB -> undefined
+    0xC -> undefined
+    0xD -> undefined
+    0xE -> undefined
+    0xF -> undefined
+    _ -> Nothing

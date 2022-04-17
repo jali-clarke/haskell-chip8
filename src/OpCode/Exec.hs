@@ -123,19 +123,12 @@ exec opCode =
     DrawSpriteAtCoords _ _ _ -> unimplemented opCode
     SkipNextIfKeyPressed registerAddress -> do
       registerValue <- VM.withRegistersAction $ Registers.readVRegister registerAddress
-      keyIsPressed <-
-        case word8ToKeyboardKey registerValue of
-          Nothing -> pure False
-          Just keyboardKey -> VM.isKeyPressed keyboardKey
+      keyIsPressed <- checkWord8IsPressed registerValue
       when keyIsPressed VM.incrementPC
       VM.incrementPC
     SkipNextIfKeyNotPressed registerAddress -> do
       registerValue <- VM.withRegistersAction $ Registers.readVRegister registerAddress
-      keyIsNotPressed <-
-        fmap not $
-          case word8ToKeyboardKey registerValue of
-            Nothing -> pure False
-            Just keyboardKey -> VM.isKeyPressed keyboardKey
+      keyIsNotPressed <- fmap not $ checkWord8IsPressed registerValue
       when keyIsNotPressed VM.incrementPC
       VM.incrementPC
     SetToDelayTimerValue registerAddress -> do
@@ -176,6 +169,12 @@ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc operator s
   Registers.writeVRegister registerAddressDest newDestRegisterValue
   let flagValue = if shouldSetFlag destRegisterValue srcRegisterValue newDestRegisterValue then 0x01 else 0x00
   Registers.writeVRegister flagRegister flagValue
+
+checkWord8IsPressed :: Word8 -> VM.Action stackSize Bool
+checkWord8IsPressed registerValue =
+  case word8ToKeyboardKey registerValue of
+    Nothing -> pure False
+    Just keyboardKey -> VM.isKeyPressed keyboardKey
 
 word8ToFinite :: Word8 -> Finite 255
 word8ToFinite = Finite.finite . fromIntegral

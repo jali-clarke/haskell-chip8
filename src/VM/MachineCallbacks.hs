@@ -1,7 +1,11 @@
-module VM.MachineCallbacks (
-  MachineCallbacks(..)
-) where
+module VM.MachineCallbacks
+  ( MachineCallbacks (..),
+  )
+where
 
 import Data.Word (Word8)
 
-data MachineCallbacks = MachineCallbacks {randomByte :: IO Word8}
+data MachineCallbacks = MachineCallbacks
+  { randomByte :: IO Word8,
+    blockingGetKeyboardKey :: IO Char
+  }

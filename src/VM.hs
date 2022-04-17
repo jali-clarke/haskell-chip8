@@ -20,6 +20,7 @@ module VM
     getPC,
     setPC,
     randomByte,
+    getKeyboardKey,
     throwVMError,
   )
 where
@@ -156,10 +157,35 @@ setPC :: MemoryAddress -> Action stackSize ()
 setPC nextPC = Action $ MTL.modify (\vmState -> vmState {pc = nextPC})
 
 randomByte :: Action stackSize Word8
-randomByte =
-  Action $ do
-    theseMachineCallbacks <- MTL.gets machineCallbacks
-    MTL.liftIO $ MachineCallbacks.randomByte theseMachineCallbacks
+randomByte = withMachineCallbacks MachineCallbacks.randomByte
+
+getKeyboardKey :: Action stackSize KeyboardKey
+getKeyboardKey = do
+  keyChar <- withMachineCallbacks MachineCallbacks.blockingGetKeyboardKey
+  case keyChar of
+    '0' -> pure $ Finite.finite 0
+    '1' -> pure $ Finite.finite 1
+    '2' -> pure $ Finite.finite 2
+    '3' -> pure $ Finite.finite 3
+    '4' -> pure $ Finite.finite 4
+    '5' -> pure $ Finite.finite 5
+    '6' -> pure $ Finite.finite 6
+    '7' -> pure $ Finite.finite 7
+    '8' -> pure $ Finite.finite 8
+    '9' -> pure $ Finite.finite 9
+    'a' -> pure $ Finite.finite 10
+    'b' -> pure $ Finite.finite 11
+    'c' -> pure $ Finite.finite 12
+    'd' -> pure $ Finite.finite 13
+    'e' -> pure $ Finite.finite 14
+    'f' -> pure $ Finite.finite 15
+    _ -> getKeyboardKey
 
 throwVMError :: String -> Action stackSize a
 throwVMError errMsg = Action $ MTL.throwError errMsg
+
+withMachineCallbacks :: (MachineCallbacks -> IO a) -> Action stackSize a
+withMachineCallbacks callbackCallback =
+  Action $ do
+    theseMachineCallbacks <- MTL.gets machineCallbacks
+    MTL.liftIO $ callbackCallback theseMachineCallbacks

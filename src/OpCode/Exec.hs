@@ -127,7 +127,10 @@ exec opCode =
       delayTimerValue <- VM.withTimersAction Timers.getDelayTimer
       VM.withRegistersAction $ Registers.writeVRegister registerAddress delayTimerValue
       VM.incrementPC
-    SetToKeyboardKey _ -> unimplemented opCode
+    SetToKeyboardKey registerAddress -> do
+      keyboardWord <- fmap keyboardKeyToWord8 VM.getKeyboardKey
+      VM.withRegistersAction $ Registers.writeVRegister registerAddress keyboardWord
+      VM.incrementPC
     SetDelayTimerToRegister registerAddress -> do
       registerValue <- VM.withRegistersAction $ Registers.readVRegister registerAddress
       VM.withTimersAction $ Timers.setDelayTimer registerValue
@@ -161,6 +164,9 @@ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc operator s
 
 word8ToFinite :: Word8 -> Finite 255
 word8ToFinite = Finite.finite . fromIntegral
+
+keyboardKeyToWord8 :: KeyboardKey -> Word8
+keyboardKeyToWord8 = fromIntegral . Finite.getFinite
 
 v0Register :: VRegisterAddress
 v0Register = Finite.finite 0

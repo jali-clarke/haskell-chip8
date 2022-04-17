@@ -24,6 +24,7 @@ library:
   source-dirs:
   - src
   dependencies:
+  - bytestring
   - finite-typelits
   - mtl
   - primitive

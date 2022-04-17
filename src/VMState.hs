@@ -18,10 +18,8 @@ module VMState
     writeAddrRegister,
     popStack,
     pushStack,
-    getDelayTimer,
-    setDelayTimer,
-    getSoundTimer,
-    setSoundTimer,
+    getsTimers,
+    modifyTimers,
     getOpCodeBin,
     incrementPC,
     setPC,
@@ -50,6 +48,8 @@ import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
 import SizedByteString (SizedByteString)
 import qualified SizedByteString
+import VMState.Timers (Timers)
+import qualified VMState.Timers as Timers
 
 type MemoryData = SizedMVector.MVector MemorySize (PrimState IO) Word8
 
@@ -68,8 +68,6 @@ newtype Memory = Memory {memData :: MemoryData}
 data Registers = Registers {vRegsData :: VRegistersData, addrReg :: MemoryAddress}
 
 data Stack stackSize = Stack {stackData :: StackData stackSize, nextStackAddr :: StackAddress stackSize}
-
-data Timers = Timers {delay :: {-# UNPACK #-} !Word8, sound :: {-# UNPACK #-} !Word8}
 
 data VMState stackSize = VMState {memory :: Memory, stack :: (Stack stackSize), registers :: Registers, timers :: Timers, pc :: MemoryAddress}
 
@@ -94,7 +92,7 @@ withNewVMState maxStackSize programRom callback =
                       { memory = Memory memoryData,
                         stack = Stack {stackData = thisStackData, nextStackAddr = Finite.finite 0},
                         registers = Registers {vRegsData = vRegistersData, addrReg = 0},
-                        timers = Timers {delay = 0, sound = 0},
+                        timers = Timers.newTimers,
                         pc = Finite.finite 0
                       }
               callback (Right newState)
@@ -142,17 +140,11 @@ pushStack returnAddr =
         State.liftIO $ SizedBoxedMVector.write (stackData stackState) newStackLastElemAddr returnAddr
         setNextStackAddr newStackNextElemAddr
 
-getDelayTimer :: VMExec stackSize Word8
-getDelayTimer = VMExec $ State.gets (delay . timers)
+getsTimers :: (Timers -> a) -> VMExec stackSize a
+getsTimers projectTimers = VMExec $ State.gets (projectTimers . timers)
 
-setDelayTimer :: Word8 -> VMExec stackSize ()
-setDelayTimer timerValue = modifyTimers (\timerState -> timerState {delay = timerValue})
-
-getSoundTimer :: VMExec stackSize Word8
-getSoundTimer = VMExec $ State.gets (sound . timers)
-
-setSoundTimer :: Word8 -> VMExec stackSize ()
-setSoundTimer timerValue = modifyTimers (\timerState -> timerState {sound = timerValue})
+modifyTimers :: (Timers -> Timers) -> VMExec stackSize ()
+modifyTimers timersUpdate = VMExec $ State.modify (\vmState -> vmState {timers = timersUpdate (timers vmState)})
 
 getOpCodeBin :: VMExec stackSize OpCodeBin
 getOpCodeBin = do
@@ -184,9 +176,6 @@ withVRegistersData vRegistersAction = VMExec $ State.gets (vRegsData . registers
 
 setNextStackAddr :: State.MonadState (VMState stackSize) m => StackAddress stackSize -> m ()
 setNextStackAddr newNextStackAddr = State.modify (\vmState -> vmState {stack = (stack vmState) {nextStackAddr = newNextStackAddr}})
-
-modifyTimers :: (Timers -> Timers) -> VMExec stackSize ()
-modifyTimers timersUpdate = VMExec $ State.modify (\vmState -> vmState {timers = timersUpdate (timers vmState)})
 
 memoryDataWithLoadedProg :: (TypeNats.KnownNat programSize, programSize <= MemorySize) => ROMData programSize -> IO MemoryData
 memoryDataWithLoadedProg programRom = do

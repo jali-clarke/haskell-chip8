@@ -7,14 +7,14 @@ module OpCode.Exec
   )
 where
 
-import Control.Monad (when)
+import Control.Monad (unless, when)
+import GHC.TypeNats (type (+), type (<=))
+import qualified GHC.TypeNats as TypeNats
 import OpCode.Type
 import qualified VMState
 import qualified VMState.Registers as Registers
 import qualified VMState.ScreenBuffer as ScreenBuffer
 import qualified VMState.Stack as Stack
-import GHC.TypeNats (type (+), type (<=))
-import qualified GHC.TypeNats as TypeNats
 
 exec :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2) => OpCode -> VMState.Action stackSize ()
 exec opCode =
@@ -36,9 +36,12 @@ exec opCode =
       registerValue <- VMState.withRegistersAction $ Registers.readVRegister registerAddress
       VMState.incrementPC
       when (registerValue == constByte) VMState.incrementPC
+    SkipNextIfRegisterNotEqualToConst registerAddress constByte -> do
+      registerValue <- VMState.withRegistersAction $ Registers.readVRegister registerAddress
+      VMState.incrementPC
+      unless (registerValue == constByte) VMState.incrementPC
     _ -> unimplemented
 
--- SkipNextIfRegisterNotEqualToConst VRegisterAddress Word8
 -- SkipNextIfRegisterEqualToRegister VRegisterAddress VRegisterAddress
 -- SetToConst VRegisterAddress Word8
 -- IncrementByConst VRegisterAddress Word8

@@ -22,6 +22,7 @@ module VM
     randomByte,
     getKeyboardKey,
     isKeyPressed,
+    renderFrozenScreenBufferData,
     throwVMError,
   )
 where
@@ -207,6 +208,12 @@ isKeyPressed keyboardKey =
           15 -> checkKeyPressed 'f'
           -- this is just here to placate the compiler - we will never reach this point
           _ -> error "VM.isKeyPressed: major bug - this should never happen"
+
+renderFrozenScreenBufferData :: Action stackSize ()
+renderFrozenScreenBufferData = do
+  frozenBufferData <- withScreenBufferAction ScreenBuffer.frozenBufferData
+  withMachineCallbacks $ \theseMachineCallbacks ->
+    MachineCallbacks.renderFrozenScreenBufferData theseMachineCallbacks frozenBufferData
 
 throwVMError :: String -> Action stackSize a
 throwVMError errMsg = Action $ MTL.throwError errMsg

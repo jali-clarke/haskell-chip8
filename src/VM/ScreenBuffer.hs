@@ -10,6 +10,7 @@ module VM.ScreenBuffer
     newScreenBuffer,
     setPixel,
     clearBuffer,
+    frozenBufferData,
   )
 where
 
@@ -18,6 +19,7 @@ import Control.Monad.Primitive (PrimState)
 import qualified Control.Monad.Reader as MTL
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
+import qualified Data.Vector.Unboxed.Sized as SizedVector
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
 import GHC.TypeNats (type (+))
 
@@ -43,27 +45,27 @@ setPixel screenX screenY pixel = do
   pure $ currentPixel && not newPixel
 
 clearBuffer :: Action ()
-clearBuffer =
-  Action $ do
-    ScreenBuffer bufferData <- MTL.ask
-    MTL.liftIO $ SizedMVector.set bufferData False
+clearBuffer = withBufferData $ \bufferData -> SizedMVector.set bufferData False
+
+frozenBufferData :: Action (SizedVector.Vector ScreenBufferSize Bool)
+frozenBufferData = withBufferData SizedVector.freeze
 
 setPixelRaw :: ScreenBufferAddress -> Bool -> Action ()
-setPixelRaw bufferAddress pixel =
-  Action $ do
-    ScreenBuffer bufferData <- MTL.ask
-    MTL.liftIO $ SizedMVector.write bufferData bufferAddress pixel
+setPixelRaw bufferAddress pixel = withBufferData $ \bufferData -> SizedMVector.write bufferData bufferAddress pixel
 
 getPixel :: ScreenX -> ScreenY -> Action Bool
-getPixel screenX screenY =
-  Action $ do
-    ScreenBuffer bufferData <- MTL.ask
-    MTL.liftIO $ SizedMVector.read bufferData (toBufferAddress screenX screenY)
+getPixel screenX screenY = withBufferData $ \bufferData -> SizedMVector.read bufferData (toBufferAddress screenX screenY)
 
 toBufferAddress :: ScreenX -> ScreenY -> ScreenBufferAddress
 toBufferAddress screenX screenY =
   Finite.finite $
     Finite.getFinite screenY * Finite.getFinite width + Finite.getFinite screenX
+
+withBufferData :: (ScreenBufferData -> IO a) -> Action a
+withBufferData callback =
+  Action $ do
+    ScreenBuffer bufferData <- MTL.ask
+    MTL.liftIO $ callback bufferData
 
 width :: Finite (ScreenWidth + 1)
 width = Finite.finite 64

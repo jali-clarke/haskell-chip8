@@ -13,8 +13,7 @@ module VMState
     withMemoryAction,
     withRegistersAction,
     withStackAction,
-    getsTimers,
-    modifyTimers,
+    withTimersAction,
     getOpCodeBin,
     incrementPC,
     setPC,
@@ -76,11 +75,13 @@ withNewVMState maxStackSize programRom callback =
 runVM :: VMState stackSize -> VMExec stackSize a -> IO (Either String a, VMState stackSize)
 runVM vmState (VMExec action) = MTL.runStateT (MTL.runExceptT action) vmState
 
-getsTimers :: (Timers -> a) -> VMExec stackSize a
-getsTimers projectTimers = VMExec $ MTL.gets (projectTimers . timers)
-
-modifyTimers :: (Timers -> Timers) -> VMExec stackSize ()
-modifyTimers timersUpdate = VMExec $ MTL.modify (\vmState -> vmState {timers = timersUpdate (timers vmState)})
+withTimersAction :: (Timers -> (a, Timers)) -> VMExec stackSize a
+withTimersAction timersAction =
+  VMExec $ do
+    vmState <- MTL.get
+    let (result, newTimers) = timersAction (timers vmState)
+    MTL.put (vmState {timers = newTimers})
+    pure result
 
 withMemoryAction :: (forall m. MTL.MonadIO m => Memory -> m a) -> VMExec stackSize a
 withMemoryAction memoryAction = VMExec $ MTL.gets memory >>= memoryAction

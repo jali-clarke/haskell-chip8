@@ -16,20 +16,20 @@ data Timers = Timers {delay :: {-# UNPACK #-} !Word8, sound :: {-# UNPACK #-} !W
 newTimers :: Timers
 newTimers = Timers {delay = 0, sound = 0}
 
-getDelayTimer :: Timers -> Word8
-getDelayTimer = delay
+getDelayTimer :: Timers -> (Word8, Timers)
+getDelayTimer timers = (delay timers, timers)
 
-setDelayTimer :: Word8 -> Timers -> Timers
-setDelayTimer timerValue timers = timers {delay = timerValue}
+setDelayTimer :: Word8 -> Timers -> ((), Timers)
+setDelayTimer timerValue timers = ((), timers {delay = timerValue})
 
-getSoundTimer :: Timers -> Word8
-getSoundTimer = sound
+getSoundTimer :: Timers -> (Word8, Timers)
+getSoundTimer timers = (sound timers, timers)
 
-setSoundTimer :: Word8 -> Timers -> Timers
-setSoundTimer timerValue timers = timers {sound = timerValue}
+setSoundTimer :: Word8 -> Timers -> ((), Timers)
+setSoundTimer timerValue timers = ((), timers {sound = timerValue})
 
-tickTimers :: Timers -> Timers
-tickTimers (Timers thisDelay thisSound) = Timers (decrement thisDelay) (decrement thisSound)
+tickTimers :: Timers -> ((), Timers)
+tickTimers (Timers thisDelay thisSound) = ((), Timers (decrement thisDelay) (decrement thisSound))
 
 decrement :: Word8 -> Word8
 decrement byte = if byte == 0 then byte else byte - 1

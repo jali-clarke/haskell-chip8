@@ -35,7 +35,8 @@ import qualified Control.Monad.Except as Except
 import Control.Monad.Primitive (PrimState)
 import Control.Monad.State.Strict (StateT)
 import qualified Control.Monad.State.Strict as State
-import Data.Bits (unsafeShiftL, unsafeShiftR, (.&.))
+import Data.Bits (unsafeShiftL, (.&.))
+import Data.ByteString (ByteString)
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
 import Data.Foldable (traverse_)
@@ -43,17 +44,17 @@ import Data.Proxy (Proxy (..))
 import Data.Type.Equality ((:~:) (..))
 import qualified Data.Vector.Mutable as BoxedMVector
 import qualified Data.Vector.Mutable.Sized as SizedBoxedMVector
-import qualified Data.Vector.Unboxed as Vector
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
-import qualified Data.Vector.Unboxed.Sized as SizedVector
 import Data.Word (Word8)
 import qualified GHC.TypeLits.Compare as TypeNats
 import GHC.TypeNats (type (*), type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
+import SizedByteString (SizedByteString)
+import qualified SizedByteString
 
 type MemoryData = SizedMVector.MVector MemorySize (PrimState IO) Word8
 
-type ROMData programSize = SizedVector.Vector programSize OpCodeBin
+type ROMData programSize = SizedByteString programSize
 
 type VRegistersData = SizedMVector.MVector NumRegisters (PrimState IO) Word8
 
@@ -75,10 +76,10 @@ data VMState stackSize = VMState {memory :: Memory, stack :: (Stack stackSize), 
 
 newtype VMExec stackSize a = VMExec (ExceptT String (StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
 
-withNewVMState :: Int -> Vector.Vector OpCodeBin -> (forall stackSize. Either String (VMState stackSize) -> IO r) -> IO r
+withNewVMState :: Int -> ByteString -> (forall stackSize. Either String (VMState stackSize) -> IO r) -> IO r
 withNewVMState maxStackSize programRom callback =
-  SizedVector.withSized programRom $ \sizedProgramRom -> do
-    let numOpCodes = SizedVector.length' sizedProgramRom
+  SizedByteString.withSized programRom $ \sizedProgramRom -> do
+    let numOpCodes = SizedByteString.length' sizedProgramRom
     case TypeNats.sameNat numOpCodes (Proxy :: Proxy 0) of
       Nothing -> callback (Left "program is empty")
       Just Refl ->
@@ -200,23 +201,19 @@ setNextStackAddr newNextStackAddr = State.modify (\vmState -> vmState {stack = (
 modifyTimers :: (Timers -> Timers) -> VMExec stackSize ()
 modifyTimers timersUpdate = VMExec $ State.modify (\vmState -> vmState {timers = timersUpdate (timers vmState)})
 
-memoryDataWithLoadedProg :: (TypeNats.KnownNat programSize, 2 * programSize <= MemorySize) => ROMData programSize -> IO MemoryData
+memoryDataWithLoadedProg :: (TypeNats.KnownNat programSize, programSize <= MemorySize) => ROMData programSize -> IO MemoryData
 memoryDataWithLoadedProg programRom = do
-  let numOpCodes = SizedVector.length' programRom
+  let numOpCodes = SizedByteString.length' programRom
       addresses = Finite.finitesProxy numOpCodes
   memoryData <- SizedMVector.unsafeNew
   traverse_ (writeOpCodeBinFromProg programRom memoryData) addresses
   pure memoryData
 
-writeOpCodeBinFromProg :: (2 * programSize <= MemorySize) => ROMData programSize -> MemoryData -> Finite programSize -> IO ()
-writeOpCodeBinFromProg programRom memoryData programAddress = do
-  -- opcodes stored big-endian
-  let opCodeBin = SizedVector.index programRom programAddress
-      rawBaseAddress = 2 * Finite.getFinite programAddress
-      memoryAddress0 = Finite.finite rawBaseAddress
-      memoryAddress1 = Finite.finite (rawBaseAddress + 1)
-  SizedMVector.write memoryData memoryAddress0 (fromIntegral $ unsafeShiftR opCodeBin 8)
-  SizedMVector.write memoryData memoryAddress1 (fromIntegral $ opCodeBin .&. 0x0F)
+writeOpCodeBinFromProg :: (programSize <= MemorySize) => ROMData programSize -> MemoryData -> Finite programSize -> IO ()
+writeOpCodeBinFromProg programRom memoryData programAddress =
+  let programByte = SizedByteString.byteAt programRom programAddress
+      memoryAddress = Finite.finite (Finite.getFinite programAddress)
+   in SizedMVector.write memoryData memoryAddress programByte
 
 double :: Proxy n -> Proxy (2 * n)
 double _ = Proxy

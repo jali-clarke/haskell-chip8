@@ -1,23 +1,24 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NoStarIsType #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE NoStarIsType #-}
 
-module VMState.ScreenBuffer (
-  ScreenBuffer,
-  Action,
-  runAction,
-  newScreenBuffer,
-  setPixel,
-) where
+module VMState.ScreenBuffer
+  ( ScreenBuffer,
+    Action,
+    runAction,
+    newScreenBuffer,
+    setPixel,
+  )
+where
 
 import BaseTypes
-import qualified Control.Monad.Reader as MTL
 import Control.Monad.Primitive (PrimState)
+import qualified Control.Monad.Reader as MTL
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
-import GHC.TypeNats (type (+), type (*))
+import GHC.TypeNats (type (*), type (+))
 
 type ScreenBufferSize = ScreenWidth * ScreenHeight
 

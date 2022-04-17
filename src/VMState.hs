@@ -12,6 +12,7 @@ module VMState
     runVM,
     withMemoryAction,
     withRegistersAction,
+    withScreenBufferAction,
     withStackAction,
     withTimersAction,
     getOpCodeBin,
@@ -36,6 +37,8 @@ import VMState.Memory (Memory)
 import qualified VMState.Memory as Memory
 import VMState.Registers (Registers)
 import qualified VMState.Registers as Registers
+import VMState.ScreenBuffer (ScreenBuffer)
+import qualified VMState.ScreenBuffer as ScreenBuffer
 import VMState.Stack (Stack)
 import qualified VMState.Stack as Stack
 import VMState.Timers (Timers)
@@ -43,7 +46,14 @@ import qualified VMState.Timers as Timers
 
 type ProgramCounter = MemoryAddress
 
-data VMState stackSize = VMState {memory :: Memory, stack :: Stack stackSize, registers :: Registers, timers :: Timers, pc :: MemoryAddress}
+data VMState stackSize = VMState
+  { memory :: Memory,
+    registers :: Registers,
+    screenBuffer :: ScreenBuffer,
+    stack :: Stack stackSize,
+    timers :: Timers,
+    pc :: MemoryAddress
+  }
 
 newtype VMExec stackSize a = VMExec (MTL.ExceptT String (MTL.StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
 
@@ -60,11 +70,13 @@ withNewVMState maxStackSize programRom callback =
             loadedMemory <- Memory.memoryWithLoadedProgram sizedProgramRom
             Stack.withNewStack maxStackSize $ \newStack -> do
               newRegisters <- Registers.newRegisters
+              newScreenBuffer <- ScreenBuffer.newScreenBuffer
               let newState =
                     VMState
                       { memory = loadedMemory,
-                        stack = newStack,
                         registers = newRegisters,
+                        screenBuffer = newScreenBuffer,
+                        stack = newStack,
                         timers = Timers.newTimers,
                         pc = Finite.finite 0
                       }
@@ -86,6 +98,12 @@ withRegistersAction registersAction =
     (result, newRegisters) <- MTL.liftIO $ Registers.runAction registersAction (registers vmState)
     MTL.put (vmState {registers = newRegisters})
     pure result
+
+withScreenBufferAction :: ScreenBuffer.Action a -> VMExec stackSize a
+withScreenBufferAction screenBufferAction =
+  VMExec $ do
+    thisScreenBuffer <- MTL.gets screenBuffer
+    MTL.liftIO $ ScreenBuffer.runAction screenBufferAction thisScreenBuffer
 
 withStackAction :: Stack.Action stackSize a -> VMExec stackSize a
 withStackAction stackAction =

@@ -67,7 +67,7 @@ data OpCode
     SetAddressRegisterToConst MemoryAddress
   | -- BNNN
     -- jump to V0 + NNN
-    JumpToAddressWithOffset VRegisterAddress MemoryAddress
+    JumpToAddressWithOffset MemoryAddress
   | -- CXNN
     -- Vx = random(0, 255) & NN
     SetToRandomWithMask VRegisterAddress Word8
@@ -126,8 +126,8 @@ decode opCodeBin =
     0x7 -> undefined
     0x8 -> undefined
     0x9 -> undefined
-    0xA -> undefined
-    0xB -> undefined
+    0xA -> Just $ decodeMemoryAddressOpCode SetAddressRegisterToConst opCodeBin
+    0xB -> Just $ decodeMemoryAddressOpCode JumpToAddressWithOffset opCodeBin
     0xC -> undefined
     0xD -> undefined
     0xE -> undefined

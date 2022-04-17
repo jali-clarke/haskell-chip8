@@ -116,9 +116,9 @@ decode opCodeBin =
       case opCodeBin of
         0x00E0 -> Just ClearDisplay
         0x00EE -> Just ReturnFromSubroutine
-        _ -> Just $ decodeMemoryAddressOpCode MachineCodeCall opCodeBin
-    0x1 -> Just $ decodeMemoryAddressOpCode JumpToAddress opCodeBin
-    0x2 -> Just $ decodeMemoryAddressOpCode CallSubroutine opCodeBin
+        _ -> Just $ decodeNNNOpCode MachineCodeCall opCodeBin
+    0x1 -> Just $ decodeNNNOpCode JumpToAddress opCodeBin
+    0x2 -> Just $ decodeNNNOpCode CallSubroutine opCodeBin
     0x3 -> undefined
     0x4 -> undefined
     0x5 -> undefined
@@ -126,13 +126,13 @@ decode opCodeBin =
     0x7 -> undefined
     0x8 -> undefined
     0x9 -> undefined
-    0xA -> Just $ decodeMemoryAddressOpCode SetAddressRegisterToConst opCodeBin
-    0xB -> Just $ decodeMemoryAddressOpCode JumpToAddressWithOffset opCodeBin
+    0xA -> Just $ decodeNNNOpCode SetAddressRegisterToConst opCodeBin
+    0xB -> Just $ decodeNNNOpCode JumpToAddressWithOffset opCodeBin
     0xC -> undefined
     0xD -> undefined
     0xE -> undefined
     0xF -> undefined
     _ -> Nothing
 
-decodeMemoryAddressOpCode :: (MemoryAddress -> a) -> OpCodeBin -> a
-decodeMemoryAddressOpCode toDecodedType opCodeBin = toDecodedType . Finite.finite . fromIntegral $ opCodeBin .&. 0x0FFF
+decodeNNNOpCode :: (MemoryAddress -> a) -> OpCodeBin -> a
+decodeNNNOpCode toDecodedType opCodeBin = toDecodedType . Finite.finite . fromIntegral $ opCodeBin .&. 0x0FFF

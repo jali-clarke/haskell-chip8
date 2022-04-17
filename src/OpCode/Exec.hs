@@ -50,9 +50,11 @@ exec opCode =
           (==) <$> Registers.readVRegister registerAddress0 <*> Registers.readVRegister registerAddress1
       VMState.incrementPC
       when registersAreEqual VMState.incrementPC
+    SetToConst registerAddress constByte -> do
+      VMState.withRegistersAction $ Registers.writeVRegister registerAddress constByte
+      VMState.incrementPC
     _ -> unimplemented
 
--- SetToConst VRegisterAddress Word8
 -- IncrementByConst VRegisterAddress Word8
 -- SetToRegister VRegisterAddress VRegisterAddress
 -- OrRegisterInplace VRegisterAddress VRegisterAddress

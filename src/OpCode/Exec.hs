@@ -20,6 +20,7 @@ import qualified VMState
 import qualified VMState.Registers as Registers
 import qualified VMState.ScreenBuffer as ScreenBuffer
 import qualified VMState.Stack as Stack
+import qualified VMState.Timers as Timers
 
 exec :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2) => OpCode -> VMState.Action stackSize ()
 exec opCode =
@@ -118,12 +119,16 @@ exec opCode =
     SetToRandomWithMask registerAddress mask -> do
       randomByte <- VMState.randomByte
       VMState.withRegistersAction $ Registers.writeVRegister registerAddress (randomByte .&. mask)
+      VMState.incrementPC
+    DrawSpriteAtCoords _ _ _ -> unimplemented opCode
+    SkipNextIfKeyPressed _ -> unimplemented opCode
+    SkipNextIfKeyNotPressed _ -> unimplemented opCode
+    SetToDelayTimerValue registerAddress -> do
+      delayTimerValue <- VMState.withTimersAction Timers.getDelayTimer
+      VMState.withRegistersAction $ Registers.writeVRegister registerAddress delayTimerValue
+      VMState.incrementPC
     _ -> unimplemented opCode
 
--- DrawSpriteAtCoords VRegisterAddress VRegisterAddress SpriteHeight
--- SkipNextIfKeyPressed VRegisterAddress
--- SkipNextIfKeyNotPressed VRegisterAddress
--- SetToDelayTimerValue VRegisterAddress
 -- SetToKeyboardKey VRegisterAddress
 -- SetDelayTimerToRegister VRegisterAddress
 -- SetSoundTimerToRegister VRegisterAddress

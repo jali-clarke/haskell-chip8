@@ -20,7 +20,7 @@ module VMState
     getPC,
     setPC,
     randomByte,
-    throwVMError
+    throwVMError,
   )
 where
 

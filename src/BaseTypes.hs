@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module BaseTypes where
 
@@ -13,6 +14,10 @@ type MaxSpriteHeight = 16
 
 type NumKeyboardKeys = 16
 
+type ScreenWidth = 64
+
+type ScreenHeight = 32
+
 type OpCodeBin = Word16
 
 type MemoryAddress = Finite MemorySize
@@ -24,3 +29,7 @@ type StackAddress stackSize = Finite stackSize
 type SpriteHeight = Finite MaxSpriteHeight
 
 type KeyboardKey = Finite NumKeyboardKeys
+
+type ScreenX = Finite ScreenWidth
+
+type ScreenY = Finite ScreenHeight

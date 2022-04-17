@@ -8,23 +8,18 @@
 module VMState
   ( VMExec,
     runVM,
-
     readMemory,
     writeMemory,
-
     readVRegister,
     writeVRegister,
     readAddrRegister,
     writeAddrRegister,
-
     popStack,
     pushStack,
-
     getDelayTimer,
     setDelayTimer,
     getSoundTimer,
     setSoundTimer,
-
     getOpCode,
     incrementPC,
     setPC,
@@ -38,26 +33,30 @@ import Control.Monad.State.Strict (StateT)
 import qualified Control.Monad.State.Strict as State
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
-import qualified Data.Vector.Unboxed.Mutable.Sized as MVector
-import qualified Data.Vector.Unboxed.Sized as Vector
+import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
+import qualified Data.Vector.Unboxed.Sized as SizedVector
 import Data.Word (Word16, Word8)
-import GHC.TypeNats (KnownNat, type (<=), type (+))
+import GHC.TypeNats (KnownNat, type (+), type (<=))
 
 type MemorySize = 4096
 
 type NumRegisters = 16
 
-type MemoryData = MVector.MVector MemorySize (PrimState IO) Word8
+type ROMAddress = Word16
 
-type VRegistersData = MVector.MVector NumRegisters (PrimState IO) Word8
+type OpCodeBin = Word16
+
+type MemoryData = SizedMVector.MVector MemorySize (PrimState IO) Word8
+
+type VRegistersData = SizedMVector.MVector NumRegisters (PrimState IO) Word8
+
+type StackData stackSize = SizedMVector.MVector stackSize (PrimState IO) ROMAddress
+
+type ProgramData programSize = SizedVector.Vector programSize OpCodeBin
 
 type MemoryAddress = Finite MemorySize
 
 type VRegisterAddress = Finite NumRegisters
-
-type ROMAddress = Word16
-
-type OpCodeBin = Word16
 
 type ProgramCounter programSize = Finite programSize
 
@@ -67,11 +66,11 @@ newtype Memory = Memory {memData :: MemoryData}
 
 data Registers = Registers {vRegsData :: VRegistersData, addrReg :: {-# UNPACK #-} !ROMAddress}
 
-data Stack stackSize = Stack {stackData :: MVector.MVector stackSize (PrimState IO) ROMAddress, nextStackAddr :: !(StackAddress stackSize)}
+data Stack stackSize = Stack {stackData :: StackData stackSize, nextStackAddr :: !(StackAddress stackSize)}
 
 data Timers = Timers {delay :: {-# UNPACK #-} !Word8, sound :: {-# UNPACK #-} !Word8}
 
-data Program programSize = Program {rom :: Vector.Vector programSize OpCodeBin, pc :: !(ProgramCounter programSize)}
+data Program programSize = Program {rom :: ProgramData programSize, pc :: !(ProgramCounter programSize)}
 
 data VMState stackSize programSize = VMState {memory :: Memory, stack :: Stack stackSize, registers :: Registers, timers :: Timers, program :: Program programSize}
 
@@ -81,16 +80,16 @@ runVM :: VMState stackSize programSize -> VMExec stackSize programSize a -> IO (
 runVM vmState (VMExec action) = State.runStateT (Except.runExceptT action) vmState
 
 readMemory :: MemoryAddress -> VMExec stackSize programSize Word8
-readMemory memAddr = withMemoryData $ \memoryData -> MVector.read memoryData memAddr
+readMemory memAddr = withMemoryData $ \memoryData -> SizedMVector.read memoryData memAddr
 
 writeMemory :: MemoryAddress -> Word8 -> VMExec stackSize programSize ()
-writeMemory memAddr byte = withMemoryData $ \memoryData -> MVector.write memoryData memAddr byte
+writeMemory memAddr byte = withMemoryData $ \memoryData -> SizedMVector.write memoryData memAddr byte
 
 readVRegister :: VRegisterAddress -> VMExec stackSize programSize Word8
-readVRegister regNumber = withVRegistersData $ \vRegistersData -> MVector.read vRegistersData regNumber
+readVRegister regNumber = withVRegistersData $ \vRegistersData -> SizedMVector.read vRegistersData regNumber
 
 writeVRegister :: VRegisterAddress -> Word8 -> VMExec stackSize programSize ()
-writeVRegister regNumber byte = withVRegistersData $ \vRegistersData -> MVector.write vRegistersData regNumber byte
+writeVRegister regNumber byte = withVRegistersData $ \vRegistersData -> SizedMVector.write vRegistersData regNumber byte
 
 readAddrRegister :: VMExec stackSize programSize ROMAddress
 readAddrRegister = VMExec $ State.gets (addrReg . registers)
@@ -105,7 +104,7 @@ popStack =
     case Finite.sub (nextStackAddr stackState) one of
       Left _ -> Except.throwError "stack underflow"
       Right stackLastElemAddr -> do
-        romAddress <- State.liftIO $ MVector.read (stackData stackState) stackLastElemAddr
+        romAddress <- State.liftIO $ SizedMVector.read (stackData stackState) stackLastElemAddr
         setNextStackAddr stackLastElemAddr
         pure romAddress
 
@@ -117,7 +116,7 @@ pushStack returnAddr =
     case addOne newStackLastElemAddr of
       Nothing -> Except.throwError "stack overflow"
       Just newStackNextElemAddr -> do
-        State.liftIO $ MVector.write (stackData stackState) newStackLastElemAddr returnAddr
+        State.liftIO $ SizedMVector.write (stackData stackState) newStackLastElemAddr returnAddr
         setNextStackAddr newStackNextElemAddr
 
 getDelayTimer :: VMExec stackSize programSize Word8
@@ -134,7 +133,7 @@ setSoundTimer timerValue = modifyTimers (\timerState -> timerState {sound = time
 
 getOpCode :: VMExec stackSize programSize OpCodeBin
 getOpCode =
-  let opCodeAccessor programState = Vector.index (rom programState) (pc programState)
+  let opCodeAccessor programState = SizedVector.index (rom programState) (pc programState)
    in VMExec $ State.gets (opCodeAccessor . program)
 
 incrementPC :: (KnownNat programSize, programSize <= programSize + 2) => VMExec stackSize programSize ()

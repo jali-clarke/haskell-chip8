@@ -7,7 +7,7 @@ module OpCode.Exec
   )
 where
 
-import Control.Monad (unless, when)
+import Control.Monad (when)
 import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
 import OpCode.Type
@@ -33,16 +33,25 @@ exec opCode =
       VMState.withStackAction $ Stack.pushStack currentPC
       VMState.setPC memoryAddress
     SkipNextIfRegisterEqualToConst registerAddress constByte -> do
-      registerValue <- VMState.withRegistersAction $ Registers.readVRegister registerAddress
+      registerEqualToConst <-
+        VMState.withRegistersAction $
+          fmap (== constByte) (Registers.readVRegister registerAddress)
       VMState.incrementPC
-      when (registerValue == constByte) VMState.incrementPC
+      when registerEqualToConst VMState.incrementPC
     SkipNextIfRegisterNotEqualToConst registerAddress constByte -> do
-      registerValue <- VMState.withRegistersAction $ Registers.readVRegister registerAddress
+      registerNotEqualToConst <-
+        VMState.withRegistersAction $
+          fmap (/= constByte) $ Registers.readVRegister registerAddress
       VMState.incrementPC
-      unless (registerValue == constByte) VMState.incrementPC
+      when registerNotEqualToConst VMState.incrementPC
+    SkipNextIfRegisterEqualToRegister registerAddress0 registerAddress1 -> do
+      registersAreEqual <-
+        VMState.withRegistersAction $
+          (==) <$> Registers.readVRegister registerAddress0 <*> Registers.readVRegister registerAddress1
+      VMState.incrementPC
+      when registersAreEqual VMState.incrementPC
     _ -> unimplemented
 
--- SkipNextIfRegisterEqualToRegister VRegisterAddress VRegisterAddress
 -- SetToConst VRegisterAddress Word8
 -- IncrementByConst VRegisterAddress Word8
 -- SetToRegister VRegisterAddress VRegisterAddress

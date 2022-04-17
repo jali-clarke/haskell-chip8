@@ -128,9 +128,12 @@ exec opCode =
       VMState.withRegistersAction $ Registers.writeVRegister registerAddress delayTimerValue
       VMState.incrementPC
     SetToKeyboardKey _ -> unimplemented opCode
+    SetDelayTimerToRegister registerAddress -> do
+      registerValue <- VMState.withRegistersAction $ Registers.readVRegister registerAddress
+      VMState.withTimersAction $ Timers.setDelayTimer registerValue
+      VMState.incrementPC
     _ -> unimplemented opCode
 
--- SetDelayTimerToRegister VRegisterAddress
 -- SetSoundTimerToRegister VRegisterAddress
 -- IncrementAddressRegisterByRegister VRegisterAddress
 -- GetLetterSpriteAddress VRegisterAddress

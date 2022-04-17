@@ -154,32 +154,32 @@ decode opCodeBin =
     0xF000 -> undefined
     _ -> Nothing
 
-decodeNNNOpCode :: (MemoryAddress -> a) -> OpCodeBin -> a
+decodeNNNOpCode :: (Finite 4096 -> a) -> OpCodeBin -> a
 decodeNNNOpCode toDecodedType opCodeBin = toDecodedType . Finite.finite . fromIntegral $ opCodeBin .&. 0x0FFF
 
-decodeXNNOpCode :: (VRegisterAddress -> Word8 -> a) -> OpCodeBin -> a
+decodeXNNOpCode :: (Finite 16 -> Word8 -> a) -> OpCodeBin -> a
 decodeXNNOpCode toDecodedType opCodeBin =
-  let targetRegister = getNybble (Finite.finite 8) opCodeBin
+  let nybble = getNybble (Finite.finite 8) opCodeBin
       byte = fromIntegral $ opCodeBin .&. 0x00FF
-   in toDecodedType targetRegister byte
+   in toDecodedType nybble byte
 
-decodeXYKOpCode :: (VRegisterAddress -> VRegisterAddress -> a) -> OpCodeBin -> a
+decodeXYKOpCode :: (Finite 16 -> Finite 16 -> a) -> OpCodeBin -> a
 decodeXYKOpCode toDecodedType opCodeBin =
-  let targetRegisterX = getNybble (Finite.finite 8) opCodeBin
-      targetRegisterY = getNybble (Finite.finite 4) opCodeBin
-   in toDecodedType targetRegisterX targetRegisterY
+  let nybbleX = getNybble (Finite.finite 8) opCodeBin
+      nybbleY = getNybble (Finite.finite 4) opCodeBin
+   in toDecodedType nybbleX nybbleY
 
-decodeXYNOpCode :: (VRegisterAddress -> VRegisterAddress -> SpriteHeight -> a) -> OpCodeBin -> a
+decodeXYNOpCode :: (Finite 16 -> Finite 16 -> Finite 16 -> a) -> OpCodeBin -> a
 decodeXYNOpCode toDecodedType opCodeBin =
-  let targetRegisterX = getNybble (Finite.finite 8) opCodeBin
-      targetRegisterY = getNybble (Finite.finite 4) opCodeBin
+  let nybbleX = getNybble (Finite.finite 8) opCodeBin
+      nybbleY = getNybble (Finite.finite 4) opCodeBin
       spriteHeight = getNybble (Finite.finite 0) opCodeBin
-   in toDecodedType targetRegisterX targetRegisterY spriteHeight
+   in toDecodedType nybbleX nybbleY spriteHeight
 
-decodeXKKOpCode :: (VRegisterAddress -> a) -> OpCodeBin -> a
+decodeXKKOpCode :: (Finite 16 -> a) -> OpCodeBin -> a
 decodeXKKOpCode toDecodedType opCodeBin =
-  let targetRegister = getNybble (Finite.finite 8) opCodeBin
-   in toDecodedType targetRegister
+  let nybble = getNybble (Finite.finite 8) opCodeBin
+   in toDecodedType nybble
 
 getNybble :: Finite 16 -> OpCodeBin -> Finite 16
 getNybble offset opCodeBin =

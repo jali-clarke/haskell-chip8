@@ -21,9 +21,7 @@ module VMState
 where
 
 import BaseTypes
-import Control.Monad.Except (ExceptT)
 import qualified Control.Monad.Except as MTL
-import Control.Monad.State.Strict (StateT)
 import qualified Control.Monad.State.Strict as MTL
 import Data.Bits (unsafeShiftL, (.|.))
 import Data.ByteString (ByteString)
@@ -38,7 +36,7 @@ import VMState.Memory (Memory, MemoryAction)
 import qualified VMState.Memory as Memory
 import VMState.Registers (Registers, RegistersAction)
 import qualified VMState.Registers as Registers
-import VMState.Stack (Stack)
+import VMState.Stack (Stack, StackAction)
 import qualified VMState.Stack as Stack
 import VMState.Timers (Timers, TimersAction)
 import qualified VMState.Timers as Timers
@@ -47,7 +45,7 @@ type ProgramCounter = MemoryAddress
 
 data VMState stackSize = VMState {memory :: Memory, stack :: Stack stackSize, registers :: Registers, timers :: Timers, pc :: MemoryAddress}
 
-newtype VMExec stackSize a = VMExec (ExceptT String (StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
+newtype VMExec stackSize a = VMExec (MTL.ExceptT String (MTL.StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
 
 withNewVMState :: Int -> ByteString -> (forall stackSize. Either String (VMState stackSize) -> IO r) -> IO r
 withNewVMState maxStackSize programRom callback =
@@ -89,13 +87,15 @@ withRegistersAction registersAction =
     MTL.put (vmState {registers = newRegisters})
     pure result
 
-withStackAction :: (forall m. (MTL.MonadIO m, MTL.MonadError String m) => Stack stackSize -> m (a, Stack stackSize)) -> VMExec stackSize a
+withStackAction :: StackAction stackSize a -> VMExec stackSize a
 withStackAction stackAction =
   VMExec $ do
     vmState <- MTL.get
-    (result, newStack) <- stackAction (stack vmState)
+    (maybeResult, newStack) <- MTL.liftIO $ Stack.runStackAction stackAction (stack vmState)
     MTL.put (vmState {stack = newStack})
-    pure result
+    case maybeResult of
+      Left err -> MTL.throwError err
+      Right result -> pure result
 
 withTimersAction :: TimersAction a -> VMExec stackSize a
 withTimersAction timersAction =

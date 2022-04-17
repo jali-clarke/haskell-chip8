@@ -19,6 +19,8 @@ type MemoryAddress = Finite MemorySize
 
 type VRegisterAddress = Finite NumRegisters
 
+type StackAddress stackSize = Finite stackSize
+
 type SpriteHeight = Finite MaxSpriteHeight
 
 type KeyboardKey = Finite NumKeyboardKeys

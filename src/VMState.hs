@@ -34,7 +34,7 @@ import qualified GHC.TypeLits.Compare as TypeNats
 import qualified GHC.TypeNats as TypeNats
 import qualified SizedByteString
 import TypeNatsHelpers
-import VMState.Memory (Memory)
+import VMState.Memory (Memory, MemoryAction)
 import qualified VMState.Memory as Memory
 import VMState.Registers (Registers, RegistersAction)
 import qualified VMState.Registers as Registers
@@ -83,8 +83,11 @@ withTimersAction timersAction =
     MTL.put (vmState {timers = newTimers})
     pure result
 
-withMemoryAction :: (forall m. MTL.MonadIO m => Memory -> m a) -> VMExec stackSize a
-withMemoryAction memoryAction = VMExec $ MTL.gets memory >>= memoryAction
+withMemoryAction :: MemoryAction a -> VMExec stackSize a
+withMemoryAction memoryAction =
+  VMExec $ do
+    thisMemory <- MTL.gets memory
+    MTL.liftIO $ Memory.runMemoryAction memoryAction thisMemory
 
 withRegistersAction :: RegistersAction a -> VMExec stackSize a
 withRegistersAction registersAction =
@@ -109,10 +112,10 @@ getOpCodeBin = do
   case addOne currentPC of
     Nothing -> VMExec $ MTL.throwError "program counter (pc) is misaligned; pc + 1 is out of the address range"
     Just currentPCPlusOne ->
-      withMemoryAction $ \memoryState -> do
+      withMemoryAction $ do
         -- opcodes stored big-endian
-        op0 <- fmap fromIntegral $ Memory.readMemory memoryState currentPC
-        op1 <- fmap fromIntegral $ Memory.readMemory memoryState currentPCPlusOne
+        op0 <- fmap fromIntegral $ Memory.readMemory currentPC
+        op1 <- fmap fromIntegral $ Memory.readMemory currentPCPlusOne
         pure $ unsafeShiftL op0 8 .|. op1
 
 incrementPC :: VMExec stackSize ()

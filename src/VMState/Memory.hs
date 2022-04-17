@@ -1,8 +1,11 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
 module VMState.Memory
   ( Memory,
+    MemoryAction,
+    runMemoryAction,
     memoryWithLoadedProgram,
     readMemory,
     writeMemory,
@@ -10,7 +13,7 @@ module VMState.Memory
 where
 
 import BaseTypes
-import qualified Control.Monad.IO.Class as MTL
+import qualified Control.Monad.Reader as MTL
 import Control.Monad.Primitive (PrimState)
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
@@ -26,11 +29,10 @@ type MemoryData = SizedMVector.MVector MemorySize (PrimState IO) Word8
 
 newtype Memory = Memory MemoryData
 
-readMemory :: MTL.MonadIO m => Memory -> MemoryAddress -> m Word8
-readMemory (Memory memData) memAddr = MTL.liftIO $ SizedMVector.read memData memAddr
+newtype MemoryAction a = MemoryAction (MTL.ReaderT Memory IO a) deriving (Functor, Applicative, Monad)
 
-writeMemory :: MTL.MonadIO m => Memory -> MemoryAddress -> Word8 -> m ()
-writeMemory (Memory memData) memAddr byte = MTL.liftIO $ SizedMVector.write memData memAddr byte
+runMemoryAction :: MemoryAction a -> Memory -> IO a
+runMemoryAction (MemoryAction action) memory = MTL.runReaderT action memory
 
 memoryWithLoadedProgram :: (TypeNats.KnownNat programSize, programSize <= MemorySize) => SizedByteString programSize -> IO Memory
 memoryWithLoadedProgram programRom = do
@@ -39,6 +41,18 @@ memoryWithLoadedProgram programRom = do
   memory <- fmap Memory SizedMVector.unsafeNew
   traverse_ (writeBinFromProgram programRom memory) addresses
   pure memory
+
+readMemory :: MemoryAddress -> MemoryAction Word8
+readMemory memoryAddress =
+  MemoryAction $ do
+    Memory memoryData <- MTL.ask
+    MTL.liftIO $ SizedMVector.read memoryData memoryAddress
+
+writeMemory :: MemoryAddress -> Word8 -> MemoryAction ()
+writeMemory memoryAddress byte =
+  MemoryAction $ do
+    Memory memoryData <- MTL.ask
+    MTL.liftIO $ SizedMVector.write memoryData memoryAddress byte
 
 writeBinFromProgram :: (programSize <= MemorySize) => SizedByteString programSize -> Memory -> Finite programSize -> IO ()
 writeBinFromProgram programRom (Memory memoryData) programAddress =

@@ -127,9 +127,9 @@ exec opCode =
       delayTimerValue <- VMState.withTimersAction Timers.getDelayTimer
       VMState.withRegistersAction $ Registers.writeVRegister registerAddress delayTimerValue
       VMState.incrementPC
+    SetToKeyboardKey _ -> unimplemented opCode
     _ -> unimplemented opCode
 
--- SetToKeyboardKey VRegisterAddress
 -- SetDelayTimerToRegister VRegisterAddress
 -- SetSoundTimerToRegister VRegisterAddress
 -- IncrementAddressRegisterByRegister VRegisterAddress

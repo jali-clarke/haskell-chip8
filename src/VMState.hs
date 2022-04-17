@@ -7,9 +7,9 @@
 
 module VMState
   ( VMState,
-    VMExec,
+    Action,
     withNewVMState,
-    runVM,
+    runAction,
     withMemoryAction,
     withRegistersAction,
     withScreenBufferAction,
@@ -55,7 +55,7 @@ data VMState stackSize = VMState
     pc :: MemoryAddress
   }
 
-newtype VMExec stackSize a = VMExec (MTL.ExceptT String (MTL.StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
+newtype Action stackSize a = Action (MTL.ExceptT String (MTL.StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
 
 withNewVMState :: Int -> ByteString -> (forall stackSize. Either String (VMState stackSize) -> IO r) -> IO r
 withNewVMState maxStackSize programRom callback =
@@ -82,32 +82,32 @@ withNewVMState maxStackSize programRom callback =
                       }
               callback (Right newState)
 
-runVM :: VMState stackSize -> VMExec stackSize a -> IO (Either String a, VMState stackSize)
-runVM vmState (VMExec action) = MTL.runStateT (MTL.runExceptT action) vmState
+runAction :: Action stackSize a -> VMState stackSize -> IO (Either String a, VMState stackSize)
+runAction (Action action) vmState = MTL.runStateT (MTL.runExceptT action) vmState
 
-withMemoryAction :: Memory.Action a -> VMExec stackSize a
+withMemoryAction :: Memory.Action a -> Action stackSize a
 withMemoryAction memoryAction =
-  VMExec $ do
+  Action $ do
     thisMemory <- MTL.gets memory
     MTL.liftIO $ Memory.runAction memoryAction thisMemory
 
-withRegistersAction :: Registers.Action a -> VMExec stackSize a
+withRegistersAction :: Registers.Action a -> Action stackSize a
 withRegistersAction registersAction =
-  VMExec $ do
+  Action $ do
     vmState <- MTL.get
     (result, newRegisters) <- MTL.liftIO $ Registers.runAction registersAction (registers vmState)
     MTL.put (vmState {registers = newRegisters})
     pure result
 
-withScreenBufferAction :: ScreenBuffer.Action a -> VMExec stackSize a
+withScreenBufferAction :: ScreenBuffer.Action a -> Action stackSize a
 withScreenBufferAction screenBufferAction =
-  VMExec $ do
+  Action $ do
     thisScreenBuffer <- MTL.gets screenBuffer
     MTL.liftIO $ ScreenBuffer.runAction screenBufferAction thisScreenBuffer
 
-withStackAction :: Stack.Action stackSize a -> VMExec stackSize a
+withStackAction :: Stack.Action stackSize a -> Action stackSize a
 withStackAction stackAction =
-  VMExec $ do
+  Action $ do
     vmState <- MTL.get
     (maybeResult, newStack) <- MTL.liftIO $ Stack.runAction stackAction (stack vmState)
     MTL.put (vmState {stack = newStack})
@@ -115,20 +115,20 @@ withStackAction stackAction =
       Left err -> MTL.throwError err
       Right result -> pure result
 
-withTimersAction :: Timers.Action a -> VMExec stackSize a
+withTimersAction :: Timers.Action a -> Action stackSize a
 withTimersAction timersAction =
-  VMExec $ do
+  Action $ do
     vmState <- MTL.get
     let (result, newTimers) = Timers.runAction timersAction (timers vmState)
     MTL.put (vmState {timers = newTimers})
     pure result
 
-getOpCodeBin :: VMExec stackSize OpCodeBin
+getOpCodeBin :: Action stackSize OpCodeBin
 getOpCodeBin = do
-  vmState <- VMExec MTL.get
+  vmState <- Action MTL.get
   let currentPC = pc vmState
   case addOne currentPC of
-    Nothing -> VMExec $ MTL.throwError "program counter (pc) is misaligned; pc + 1 is out of the address range"
+    Nothing -> Action $ MTL.throwError "program counter (pc) is misaligned; pc + 1 is out of the address range"
     Just currentPCPlusOne ->
       withMemoryAction $ do
         -- opcodes stored big-endian
@@ -136,12 +136,12 @@ getOpCodeBin = do
         op1 <- fmap fromIntegral $ Memory.readMemory currentPCPlusOne
         pure $ unsafeShiftL op0 8 .|. op1
 
-incrementPC :: VMExec stackSize ()
+incrementPC :: Action stackSize ()
 incrementPC = do
-  currentPC <- VMExec $ MTL.gets pc
+  currentPC <- Action $ MTL.gets pc
   case addTwo currentPC of
-    Nothing -> VMExec $ MTL.throwError "incremented past end of vm memory"
+    Nothing -> Action $ MTL.throwError "incremented past end of vm memory"
     Just nextPC -> setPC nextPC
 
-setPC :: ProgramCounter -> VMExec stackSize ()
-setPC nextPC = VMExec $ MTL.modify (\vmState -> vmState {pc = nextPC})
+setPC :: ProgramCounter -> Action stackSize ()
+setPC nextPC = Action $ MTL.modify (\vmState -> vmState {pc = nextPC})

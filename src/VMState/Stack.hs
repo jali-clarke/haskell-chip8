@@ -14,7 +14,7 @@ module VMState.Stack
 where
 
 import BaseTypes
-import qualified Control.Monad.Except as Except
+import qualified Control.Monad.Except as MTL
 import Control.Monad.Primitive (PrimState)
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
@@ -36,19 +36,19 @@ withNewStack maxStackSize callback = do
   SizedBoxedMVector.withSized unsizedStackData $ \thisStackData ->
     callback (Stack {stackData = thisStackData, nextStackAddr = Finite.finite 0})
 
-popStack :: (Except.MonadIO m, Except.MonadError String m) => Stack stackSize -> m (MemoryAddress, Stack stackSize)
+popStack :: (MTL.MonadIO m, MTL.MonadError String m) => Stack stackSize -> m (MemoryAddress, Stack stackSize)
 popStack stack = do
   case Finite.sub (nextStackAddr stack) one of
-    Left _ -> Except.throwError "stack underflow"
+    Left _ -> MTL.throwError "stack underflow"
     Right stackLastElemAddr -> do
-      memAddress <- Except.liftIO $ SizedBoxedMVector.read (stackData stack) stackLastElemAddr
+      memAddress <- MTL.liftIO $ SizedBoxedMVector.read (stackData stack) stackLastElemAddr
       pure (memAddress, stack {nextStackAddr = stackLastElemAddr})
 
-pushStack :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2, Except.MonadIO m, Except.MonadError String m) => Stack stackSize -> MemoryAddress -> m ((), Stack stackSize)
+pushStack :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2, MTL.MonadIO m, MTL.MonadError String m) => Stack stackSize -> MemoryAddress -> m ((), Stack stackSize)
 pushStack stack returnAddr = do
   let newStackLastElemAddr = nextStackAddr stack
   case addOne newStackLastElemAddr of
-    Nothing -> Except.throwError "stack overflow"
+    Nothing -> MTL.throwError "stack overflow"
     Just newStackNextElemAddr -> do
-      Except.liftIO $ SizedBoxedMVector.write (stackData stack) newStackLastElemAddr returnAddr
+      MTL.liftIO $ SizedBoxedMVector.write (stackData stack) newStackLastElemAddr returnAddr
       pure ((), stack {nextStackAddr = newStackNextElemAddr})

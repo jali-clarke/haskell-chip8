@@ -25,9 +25,9 @@ where
 
 import BaseTypes
 import Control.Monad.Except (ExceptT)
-import qualified Control.Monad.Except as Except
+import qualified Control.Monad.Except as MTL
 import Control.Monad.State.Strict (StateT)
-import qualified Control.Monad.State.Strict as State
+import qualified Control.Monad.State.Strict as MTL
 import Data.Bits (unsafeShiftL, (.|.))
 import Data.ByteString (ByteString)
 import qualified Data.Finite as Finite
@@ -76,40 +76,40 @@ withNewVMState maxStackSize programRom callback =
               callback (Right newState)
 
 runVM :: VMState stackSize -> VMExec stackSize a -> IO (Either String a, VMState stackSize)
-runVM vmState (VMExec action) = State.runStateT (Except.runExceptT action) vmState
+runVM vmState (VMExec action) = MTL.runStateT (MTL.runExceptT action) vmState
 
 getsTimers :: (Timers -> a) -> VMExec stackSize a
-getsTimers projectTimers = VMExec $ State.gets (projectTimers . timers)
+getsTimers projectTimers = VMExec $ MTL.gets (projectTimers . timers)
 
 modifyTimers :: (Timers -> Timers) -> VMExec stackSize ()
-modifyTimers timersUpdate = VMExec $ State.modify (\vmState -> vmState {timers = timersUpdate (timers vmState)})
+modifyTimers timersUpdate = VMExec $ MTL.modify (\vmState -> vmState {timers = timersUpdate (timers vmState)})
 
 withMemory :: (Memory -> IO a) -> VMExec stackSize a
-withMemory memoryAction = VMExec $ State.gets memory >>= State.liftIO . memoryAction
+withMemory memoryAction = VMExec $ MTL.gets memory >>= MTL.liftIO . memoryAction
 
 getsRegisters :: (Registers -> a) -> VMExec stackSize a
-getsRegisters projectRegisters = VMExec $ State.gets (projectRegisters . registers)
+getsRegisters projectRegisters = VMExec $ MTL.gets (projectRegisters . registers)
 
 withRegisters :: (Registers -> IO a) -> VMExec stackSize a
-withRegisters registersAction = VMExec $ State.gets registers >>= State.liftIO . registersAction
+withRegisters registersAction = VMExec $ MTL.gets registers >>= MTL.liftIO . registersAction
 
 modifyRegisters :: (Registers -> Registers) -> VMExec stackSize ()
-modifyRegisters registersUpdate = VMExec $ State.modify (\vmState -> vmState {registers = registersUpdate (registers vmState)})
+modifyRegisters registersUpdate = VMExec $ MTL.modify (\vmState -> vmState {registers = registersUpdate (registers vmState)})
 
-withStackAction :: (forall m. (Except.MonadIO m, Except.MonadError String m) => Stack stackSize -> m (a, Stack stackSize)) -> VMExec stackSize a
+withStackAction :: (forall m. (MTL.MonadIO m, MTL.MonadError String m) => Stack stackSize -> m (a, Stack stackSize)) -> VMExec stackSize a
 withStackAction stackAction =
   VMExec $ do
-    vmState <- State.get
+    vmState <- MTL.get
     (result, newStack) <- stackAction (stack vmState)
-    State.put (vmState {stack = newStack})
+    MTL.put (vmState {stack = newStack})
     pure result
 
 getOpCodeBin :: VMExec stackSize OpCodeBin
 getOpCodeBin = do
-  vmState <- VMExec State.get
+  vmState <- VMExec MTL.get
   let currentPC = pc vmState
   case addOne currentPC of
-    Nothing -> VMExec $ Except.throwError "program counter (pc) is misaligned; pc + 1 is out of the address range"
+    Nothing -> VMExec $ MTL.throwError "program counter (pc) is misaligned; pc + 1 is out of the address range"
     Just currentPCPlusOne ->
       withMemory $ \memoryState -> do
         -- opcodes stored big-endian
@@ -119,10 +119,10 @@ getOpCodeBin = do
 
 incrementPC :: VMExec stackSize ()
 incrementPC = do
-  currentPC <- VMExec $ State.gets pc
+  currentPC <- VMExec $ MTL.gets pc
   case addTwo currentPC of
-    Nothing -> VMExec $ Except.throwError "incremented past end of vm memory"
+    Nothing -> VMExec $ MTL.throwError "incremented past end of vm memory"
     Just nextPC -> setPC nextPC
 
 setPC :: ProgramCounter -> VMExec stackSize ()
-setPC nextPC = VMExec $ State.modify (\vmState -> vmState {pc = nextPC})
+setPC nextPC = VMExec $ MTL.modify (\vmState -> vmState {pc = nextPC})

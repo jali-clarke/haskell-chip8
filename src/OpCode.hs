@@ -119,16 +119,16 @@ decode opCodeBin =
         _ -> Just $ decodeNNNOpCode MachineCodeCall opCodeBin
     0x1 -> Just $ decodeNNNOpCode JumpToAddress opCodeBin
     0x2 -> Just $ decodeNNNOpCode CallSubroutine opCodeBin
-    0x3 -> undefined
-    0x4 -> undefined
+    0x3 -> Just $ decodeXNNOpCode SkipNextIfRegisterEqualToConst opCodeBin
+    0x4 -> Just $ decodeXNNOpCode SkipNextIfRegisterNotEqualToConst opCodeBin
     0x5 -> undefined
-    0x6 -> undefined
-    0x7 -> undefined
+    0x6 -> Just $ decodeXNNOpCode SetToConst opCodeBin
+    0x7 -> Just $ decodeXNNOpCode IncrementByConst opCodeBin
     0x8 -> undefined
     0x9 -> undefined
     0xA -> Just $ decodeNNNOpCode SetAddressRegisterToConst opCodeBin
     0xB -> Just $ decodeNNNOpCode JumpToAddressWithOffset opCodeBin
-    0xC -> undefined
+    0xC -> Just $ decodeXNNOpCode SetToRandomWithMask opCodeBin
     0xD -> undefined
     0xE -> undefined
     0xF -> undefined
@@ -136,3 +136,9 @@ decode opCodeBin =
 
 decodeNNNOpCode :: (MemoryAddress -> a) -> OpCodeBin -> a
 decodeNNNOpCode toDecodedType opCodeBin = toDecodedType . Finite.finite . fromIntegral $ opCodeBin .&. 0x0FFF
+
+decodeXNNOpCode :: (VRegisterAddress -> Word8 -> a) -> OpCodeBin -> a
+decodeXNNOpCode toDecodedType opCodeBin =
+  let targetRegister = Finite.finite . fromIntegral $ unsafeShiftR (opCodeBin .&. 0x0F00) 8
+      byte = fromIntegral $ opCodeBin .&. 0x00FF
+   in toDecodedType targetRegister byte

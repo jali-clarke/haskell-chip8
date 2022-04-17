@@ -14,9 +14,9 @@ exec opCode =
     MachineCodeCall _ -> unimplemented
     ClearDisplay -> VMState.withScreenBufferAction ScreenBuffer.clearBuffer *> VMState.incrementPC
     ReturnFromSubroutine -> VMState.withStackAction Stack.popStack >>= VMState.setPC
+    JumpToAddress memoryAddress -> VMState.setPC memoryAddress
     _ -> unimplemented
 
--- JumpToAddress MemoryAddress
 -- CallSubroutine MemoryAddress
 -- SkipNextIfRegisterEqualToConst VRegisterAddress Word8
 -- SkipNextIfRegisterNotEqualToConst VRegisterAddress Word8

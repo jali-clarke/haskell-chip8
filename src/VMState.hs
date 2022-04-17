@@ -44,8 +44,6 @@ import qualified VMState.Stack as Stack
 import VMState.Timers (Timers)
 import qualified VMState.Timers as Timers
 
-type ProgramCounter = MemoryAddress
-
 data VMState stackSize = VMState
   { memory :: Memory,
     registers :: Registers,
@@ -143,5 +141,5 @@ incrementPC = do
     Nothing -> Action $ MTL.throwError "incremented past end of vm memory"
     Just nextPC -> setPC nextPC
 
-setPC :: ProgramCounter -> Action stackSize ()
+setPC :: MemoryAddress -> Action stackSize ()
 setPC nextPC = Action $ MTL.modify (\vmState -> vmState {pc = nextPC})

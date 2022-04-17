@@ -7,5 +7,6 @@ import Data.Word (Word8)
 
 data MachineCallbacks = MachineCallbacks
   { randomByte :: IO Word8,
-    blockingGetKeyboardKey :: IO Char
+    blockingGetKeyboardKey :: IO Char,
+    isKeyPressed :: Char -> IO Bool
   }

@@ -21,6 +21,7 @@ module VM
     setPC,
     randomByte,
     getKeyboardKey,
+    isKeyPressed,
     throwVMError,
   )
 where
@@ -113,14 +114,16 @@ withScreenBufferAction screenBufferAction =
     MTL.liftIO $ ScreenBuffer.runAction screenBufferAction thisScreenBuffer
 
 withStackAction :: Stack.Action stackSize a -> Action stackSize a
-withStackAction stackAction =
-  Action $ do
-    vmState <- MTL.get
-    (maybeResult, newStack) <- MTL.liftIO $ Stack.runAction stackAction (stack vmState)
-    MTL.put (vmState {stack = newStack})
-    case maybeResult of
-      Left err -> MTL.throwError err
-      Right result -> pure result
+withStackAction stackAction = do
+  maybeResult <-
+    Action $ do
+      vmState <- MTL.get
+      (maybeResult, newStack) <- MTL.liftIO $ Stack.runAction stackAction (stack vmState)
+      MTL.put (vmState {stack = newStack})
+      pure maybeResult
+  case maybeResult of
+    Left err -> throwVMError err
+    Right result -> pure result
 
 withTimersAction :: Timers.Action a -> Action stackSize a
 withTimersAction timersAction =
@@ -135,7 +138,7 @@ getOpCodeBin = do
   vmState <- Action MTL.get
   let currentPC = pc vmState
   case addOne currentPC of
-    Nothing -> Action $ MTL.throwError "program counter (pc) is misaligned; pc + 1 is out of the address range"
+    Nothing -> throwVMError "program counter (pc) is misaligned; pc + 1 is out of the address range"
     Just currentPCPlusOne ->
       withMemoryAction $ do
         -- opcodes stored big-endian
@@ -147,7 +150,7 @@ incrementPC :: Action stackSize ()
 incrementPC = do
   currentPC <- Action $ MTL.gets pc
   case addTwo currentPC of
-    Nothing -> Action $ MTL.throwError "incremented past end of vm memory"
+    Nothing -> throwVMError "incremented past end of vm memory"
     Just nextPC -> setPC nextPC
 
 getPC :: Action stackSize MemoryAddress
@@ -180,6 +183,30 @@ getKeyboardKey = do
     'e' -> pure $ Finite.finite 14
     'f' -> pure $ Finite.finite 15
     _ -> getKeyboardKey
+
+isKeyPressed :: KeyboardKey -> Action stackSize Bool
+isKeyPressed keyboardKey =
+  withMachineCallbacks $ \theseMachineCallbacks ->
+    let checkKeyPressed = MachineCallbacks.isKeyPressed theseMachineCallbacks
+     in case Finite.getFinite keyboardKey of
+          0 -> checkKeyPressed '0'
+          1 -> checkKeyPressed '1'
+          2 -> checkKeyPressed '2'
+          3 -> checkKeyPressed '3'
+          4 -> checkKeyPressed '4'
+          5 -> checkKeyPressed '5'
+          6 -> checkKeyPressed '6'
+          7 -> checkKeyPressed '7'
+          8 -> checkKeyPressed '8'
+          9 -> checkKeyPressed '9'
+          10 -> checkKeyPressed 'a'
+          11 -> checkKeyPressed 'b'
+          12 -> checkKeyPressed 'c'
+          13 -> checkKeyPressed 'd'
+          14 -> checkKeyPressed 'e'
+          15 -> checkKeyPressed 'f'
+          -- this is just here to placate the compiler - we will never reach this point
+          _ -> error "VM.isKeyPressed: major bug - this should never happen"
 
 throwVMError :: String -> Action stackSize a
 throwVMError errMsg = Action $ MTL.throwError errMsg

@@ -121,7 +121,14 @@ exec opCode =
       VM.withRegistersAction $ Registers.writeVRegister registerAddress (randomByte .&. mask)
       VM.incrementPC
     DrawSpriteAtCoords _ _ _ -> unimplemented opCode
-    SkipNextIfKeyPressed _ -> unimplemented opCode
+    SkipNextIfKeyPressed registerAddress -> do
+      registerValue <- VM.withRegistersAction $ Registers.readVRegister registerAddress
+      keyIsPressed <- 
+        case word8ToKeyboardKey registerValue of
+          Nothing -> pure False
+          Just keyboardKey -> VM.isKeyPressed keyboardKey
+      when keyIsPressed VM.incrementPC
+      VM.incrementPC
     SkipNextIfKeyNotPressed _ -> unimplemented opCode
     SetToDelayTimerValue registerAddress -> do
       delayTimerValue <- VM.withTimersAction Timers.getDelayTimer
@@ -167,6 +174,9 @@ word8ToFinite = Finite.finite . fromIntegral
 
 keyboardKeyToWord8 :: KeyboardKey -> Word8
 keyboardKeyToWord8 = fromIntegral . Finite.getFinite
+
+word8ToKeyboardKey :: Word8 -> Maybe KeyboardKey
+word8ToKeyboardKey = Finite.packFinite . fromIntegral
 
 v0Register :: VRegisterAddress
 v0Register = Finite.finite 0

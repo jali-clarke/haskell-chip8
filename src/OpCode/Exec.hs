@@ -76,10 +76,10 @@ exec opCode =
       VMState.withRegistersAction $ inplaceBinaryOperation registerAddressDest registerAddressSrc xor
       VMState.incrementPC
     IncrementByRegister registerAddressDest registerAddressSrc -> do
-      VMState.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (+) (\old new -> new < old)
+      VMState.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (+) (\old _ new -> new < old)
       VMState.incrementPC
     DecrementByRegister registerAddressDest registerAddressSrc -> do
-      VMState.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (-) (\old new -> new > old)
+      VMState.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (-) (\old _ new -> new > old)
       VMState.incrementPC
     ShiftRight registerAddress -> do
       VMState.withRegistersAction $ do
@@ -89,9 +89,11 @@ exec opCode =
         Registers.writeVRegister registerAddress newRegisterValue
         Registers.writeVRegister flagRegister flagRegisterValue
       VMState.incrementPC
+    DecrementByRegisterReverse registerAddressDest registerAddressSrc -> do
+      VMState.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (flip (-)) (\_ src new -> new > src)
+      VMState.incrementPC
     _ -> unimplemented
 
--- DecrementByRegisterReverse VRegisterAddress VRegisterAddress
 -- ShiftLeft VRegisterAddress
 -- SkipNextIfRegisterNotEqualToRegister VRegisterAddress VRegisterAddress
 -- SetAddressRegisterToConst MemoryAddress
@@ -118,13 +120,13 @@ inplaceBinaryOperation registerAddressDest registerAddressSrc operator = do
   srcRegisterValue <- Registers.readVRegister registerAddressSrc
   Registers.modifyVRegister registerAddressDest (\destRegisterValue -> operator destRegisterValue srcRegisterValue)
 
-inplaceBinaryOperationWithFlag :: VRegisterAddress -> VRegisterAddress -> (Word8 -> Word8 -> Word8) -> (Word8 -> Word8 -> Bool) -> Registers.Action ()
+inplaceBinaryOperationWithFlag :: VRegisterAddress -> VRegisterAddress -> (Word8 -> Word8 -> Word8) -> (Word8 -> Word8 -> Word8 -> Bool) -> Registers.Action ()
 inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc operator shouldSetFlag = do
   srcRegisterValue <- Registers.readVRegister registerAddressSrc
   destRegisterValue <- Registers.readVRegister registerAddressDest
   let newDestRegisterValue = operator destRegisterValue srcRegisterValue
   Registers.writeVRegister registerAddressDest newDestRegisterValue
-  let flagValue = if shouldSetFlag destRegisterValue newDestRegisterValue then 0x01 else 0x00
+  let flagValue = if shouldSetFlag destRegisterValue srcRegisterValue newDestRegisterValue then 0x01 else 0x00
   Registers.writeVRegister flagRegister flagValue
 
 flagRegister :: VRegisterAddress

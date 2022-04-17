@@ -9,7 +9,7 @@ where
 
 import BaseTypes
 import Control.Monad (when)
-import Data.Bits ((.|.), (.&.))
+import Data.Bits (xor, (.&.), (.|.))
 import Data.Word (Word8)
 import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
@@ -71,9 +71,11 @@ exec opCode =
     AndRegisterInplace registerAddressDest registerAddressSrc -> do
       VMState.withRegistersAction $ inplaceBinaryOperation registerAddressDest registerAddressSrc (.&.)
       VMState.incrementPC
+    XorRegisterInplace registerAddressDest registerAddressSrc -> do
+      VMState.withRegistersAction $ inplaceBinaryOperation registerAddressDest registerAddressSrc xor
+      VMState.incrementPC
     _ -> unimplemented
 
--- XorRegisterInplace VRegisterAddress VRegisterAddress
 -- IncrementByRegister VRegisterAddress VRegisterAddress
 -- DecrementByRegister VRegisterAddress VRegisterAddress
 -- ShiftRight VRegisterAddress

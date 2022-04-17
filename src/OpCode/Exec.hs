@@ -8,6 +8,7 @@ module OpCode.Exec
 where
 
 import Control.Monad (when)
+import Data.Bits ((.|.))
 import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
 import OpCode.Type
@@ -54,6 +55,7 @@ exec opCode =
       VMState.withRegistersAction $ Registers.writeVRegister registerAddress constByte
       VMState.incrementPC
     IncrementByConst registerAddress incByte -> do
+      -- no carry flag setting here
       VMState.withRegistersAction $ Registers.modifyVRegister registerAddress (+ incByte)
       VMState.incrementPC
     SetToRegister registerAddressDest registerAddressSrc -> do
@@ -61,9 +63,13 @@ exec opCode =
         registerValue <- Registers.readVRegister registerAddressSrc
         Registers.writeVRegister registerAddressDest registerValue
       VMState.incrementPC
+    OrRegisterInplace registerAddressDest registerAddressSrc -> do
+      VMState.withRegistersAction $ do
+        srcRegisterValue <- Registers.readVRegister registerAddressSrc
+        Registers.modifyVRegister registerAddressDest (\destRegisterValue -> destRegisterValue .|. srcRegisterValue)
+      VMState.incrementPC
     _ -> unimplemented
 
--- OrRegisterInplace VRegisterAddress VRegisterAddress
 -- AndRegisterInplace VRegisterAddress VRegisterAddress
 -- XorRegisterInplace VRegisterAddress VRegisterAddress
 -- IncrementByRegister VRegisterAddress VRegisterAddress

@@ -36,8 +36,9 @@ import Data.Word (Word8)
 import qualified GHC.TypeLits.Compare as TypeNats
 import qualified GHC.TypeNats as TypeNats
 import qualified SizedByteString
-import qualified System.Random as Random
 import TypeNatsHelpers
+import VM.MachineCallbacks (MachineCallbacks)
+import qualified VM.MachineCallbacks as MachineCallbacks
 import VM.Memory (Memory)
 import qualified VM.Memory as Memory
 import VM.Registers (Registers)
@@ -55,13 +56,14 @@ data VMState stackSize = VMState
     screenBuffer :: ScreenBuffer,
     stack :: Stack stackSize,
     timers :: Timers,
-    pc :: MemoryAddress
+    pc :: MemoryAddress,
+    machineCallbacks :: MachineCallbacks
   }
 
 newtype Action stackSize a = Action (MTL.ExceptT String (MTL.StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
 
-withNewVMState :: Int -> ByteString -> (forall stackSize. Either String (VMState stackSize) -> IO r) -> IO r
-withNewVMState maxStackSize programRom callback =
+withNewVMState :: MachineCallbacks -> Int -> ByteString -> (forall stackSize. Either String (VMState stackSize) -> IO r) -> IO r
+withNewVMState theseMachineCallbacks maxStackSize programRom callback =
   SizedByteString.withSized programRom $ \sizedProgramRom -> do
     let byteStringSize = SizedByteString.length' sizedProgramRom
     case TypeNats.sameNat byteStringSize (Proxy :: Proxy 0) of
@@ -76,7 +78,8 @@ withNewVMState maxStackSize programRom callback =
               newScreenBuffer <- ScreenBuffer.newScreenBuffer
               let newState =
                     VMState
-                      { memory = loadedMemory,
+                      { machineCallbacks = theseMachineCallbacks,
+                        memory = loadedMemory,
                         registers = newRegisters,
                         screenBuffer = newScreenBuffer,
                         stack = newStack,
@@ -153,7 +156,10 @@ setPC :: MemoryAddress -> Action stackSize ()
 setPC nextPC = Action $ MTL.modify (\vmState -> vmState {pc = nextPC})
 
 randomByte :: Action stackSize Word8
-randomByte = Action $ MTL.liftIO Random.randomIO
+randomByte =
+  Action $ do
+    theseMachineCallbacks <- MTL.gets machineCallbacks
+    MTL.liftIO $ MachineCallbacks.randomByte theseMachineCallbacks
 
 throwVMError :: String -> Action stackSize a
 throwVMError errMsg = Action $ MTL.throwError errMsg

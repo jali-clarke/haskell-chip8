@@ -3,7 +3,7 @@
 
 module VMState.Memory
   ( Memory,
-    memoryDataWithLoadedProg,
+    memoryWithLoadedProgram,
     readMemory,
     writeMemory,
   )
@@ -31,16 +31,16 @@ readMemory (Memory memData) memAddr = SizedMVector.read memData memAddr
 writeMemory :: Memory -> MemoryAddress -> Word8 -> IO ()
 writeMemory (Memory memData) memAddr byte = SizedMVector.write memData memAddr byte
 
-memoryDataWithLoadedProg :: (TypeNats.KnownNat programSize, programSize <= MemorySize) => SizedByteString programSize -> IO Memory
-memoryDataWithLoadedProg programRom = do
-  let numOpCodes = SizedByteString.length' programRom
-      addresses = Finite.finitesProxy numOpCodes
-  memoryData <- SizedMVector.unsafeNew
-  traverse_ (writeOpCodeBinFromProg programRom memoryData) addresses
-  pure $ Memory memoryData
+memoryWithLoadedProgram :: (TypeNats.KnownNat programSize, programSize <= MemorySize) => SizedByteString programSize -> IO Memory
+memoryWithLoadedProgram programRom = do
+  let programLength = SizedByteString.length' programRom
+      addresses = Finite.finitesProxy programLength
+  memory <- fmap Memory SizedMVector.unsafeNew
+  traverse_ (writeBinFromProgram programRom memory) addresses
+  pure memory
 
-writeOpCodeBinFromProg :: (programSize <= MemorySize) => SizedByteString programSize -> MemoryData -> Finite programSize -> IO ()
-writeOpCodeBinFromProg programRom memoryData programAddress =
+writeBinFromProgram :: (programSize <= MemorySize) => SizedByteString programSize -> Memory -> Finite programSize -> IO ()
+writeBinFromProgram programRom (Memory memoryData) programAddress =
   let programByte = SizedByteString.byteAt programRom programAddress
       memoryAddress = Finite.finite (Finite.getFinite programAddress)
    in SizedMVector.write memoryData memoryAddress programByte

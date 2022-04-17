@@ -76,7 +76,7 @@ withNewVMState maxStackSize programRom callback =
         case TypeNats.isLE byteStringSize (Proxy :: Proxy MemorySize) of
           Nothing -> callback (Left "program rom is too large")
           Just Refl -> do
-            loadedMemory <- Memory.memoryDataWithLoadedProg sizedProgramRom
+            loadedMemory <- Memory.memoryWithLoadedProgram sizedProgramRom
             unsizedStackData <- BoxedMVector.unsafeNew maxStackSize
             SizedBoxedMVector.withSized unsizedStackData $ \thisStackData -> do
               vRegistersData <- SizedMVector.unsafeNew

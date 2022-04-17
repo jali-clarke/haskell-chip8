@@ -23,7 +23,7 @@ import qualified VMState.Stack as Stack
 exec :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2) => OpCode -> VMState.Action stackSize ()
 exec opCode =
   case opCode of
-    MachineCodeCall _ -> unimplemented
+    MachineCodeCall _ -> unimplemented opCode
     ClearDisplay -> do
       VMState.withScreenBufferAction ScreenBuffer.clearBuffer
       VMState.incrementPC
@@ -109,7 +109,7 @@ exec opCode =
     SetAddressRegisterToConst memoryAddress -> do
       VMState.withRegistersAction $ Registers.writeAddrRegister memoryAddress
       VMState.incrementPC
-    _ -> unimplemented
+    _ -> unimplemented opCode
 
 -- JumpToAddressWithOffset MemoryAddress
 -- SetToRandomWithMask VRegisterAddress Word8
@@ -126,8 +126,8 @@ exec opCode =
 -- DumpRegisters VRegisterAddress
 -- LoadRegisters VRegisterAddress
 
-unimplemented :: VMState.Action stackSize ()
-unimplemented = pure ()
+unimplemented :: OpCode -> VMState.Action stackSize ()
+unimplemented opCode = VMState.throwVMError $ "unimplemented opCode: " <> show opCode
 
 inplaceBinaryOperation :: VRegisterAddress -> VRegisterAddress -> (Word8 -> Word8 -> Word8) -> Registers.Action ()
 inplaceBinaryOperation registerAddressDest registerAddressSrc operator = do

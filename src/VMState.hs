@@ -19,6 +19,7 @@ module VMState
     incrementPC,
     getPC,
     setPC,
+    throwVMError
   )
 where
 
@@ -147,3 +148,6 @@ getPC = Action $ MTL.gets pc
 
 setPC :: MemoryAddress -> Action stackSize ()
 setPC nextPC = Action $ MTL.modify (\vmState -> vmState {pc = nextPC})
+
+throwVMError :: String -> Action stackSize a
+throwVMError errMsg = Action $ MTL.throwError errMsg

@@ -105,3 +105,4 @@ data OpCode
   | -- FX65
     -- loads from V0 to Vx (including Vx) in memory, starting at the address specified by the address register
     LoadRegisters VRegisterAddress
+  deriving Show

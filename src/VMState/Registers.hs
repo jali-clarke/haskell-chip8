@@ -7,6 +7,7 @@ module VMState.Registers
     newRegisters,
     readVRegister,
     writeVRegister,
+    modifyVRegister,
     readAddrRegister,
     writeAddrRegister,
   )
@@ -33,19 +34,22 @@ newRegisters = do
   pure $ Registers {vRegsData = vRegistersData, addrReg = 0}
 
 readVRegister :: VRegisterAddress -> Action Word8
-readVRegister regAddr =
-  Action $ do
-    registers <- MTL.get
-    MTL.liftIO $ SizedMVector.read (vRegsData registers) regAddr
+readVRegister regAddr = withVRegistersData $ \vRegistersData -> SizedMVector.read vRegistersData regAddr
 
 writeVRegister :: VRegisterAddress -> Word8 -> Action ()
-writeVRegister regAddr byte =
-  Action $ do
-    registers <- MTL.get
-    MTL.liftIO $ SizedMVector.write (vRegsData registers) regAddr byte
+writeVRegister regAddr byte = withVRegistersData $ \vRegistersData -> SizedMVector.write vRegistersData regAddr byte
+
+modifyVRegister :: VRegisterAddress -> (Word8 -> Word8) -> Action ()
+modifyVRegister regAddr modifyByte = withVRegistersData $ \vRegistersData -> SizedMVector.modify vRegistersData modifyByte regAddr
 
 readAddrRegister :: Action MemoryAddress
 readAddrRegister = Action $ fmap addrReg MTL.get
 
 writeAddrRegister :: MemoryAddress -> Action ()
 writeAddrRegister addrValue = Action $ MTL.modify (\registers -> registers {addrReg = addrValue})
+
+withVRegistersData :: (VRegistersData -> IO a) -> Action a
+withVRegistersData callback =
+  Action $ do
+    registers <- MTL.get
+    MTL.liftIO $ callback (vRegsData registers)

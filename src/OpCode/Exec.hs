@@ -53,9 +53,11 @@ exec opCode =
     SetToConst registerAddress constByte -> do
       VMState.withRegistersAction $ Registers.writeVRegister registerAddress constByte
       VMState.incrementPC
+    IncrementByConst registerAddress incByte -> do
+      VMState.withRegistersAction $ Registers.modifyVRegister registerAddress (+ incByte)
+      VMState.incrementPC
     _ -> unimplemented
 
--- IncrementByConst VRegisterAddress Word8
 -- SetToRegister VRegisterAddress VRegisterAddress
 -- OrRegisterInplace VRegisterAddress VRegisterAddress
 -- AndRegisterInplace VRegisterAddress VRegisterAddress

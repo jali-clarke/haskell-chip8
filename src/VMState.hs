@@ -93,21 +93,9 @@ withNewVMState maxStackSize programRom callback =
               let newState =
                     VMState
                       { memory = Memory memoryData,
-                        stack =
-                          Stack
-                            { stackData = thisStackData,
-                              nextStackAddr = Finite.finite 0
-                            },
-                        registers =
-                          Registers
-                            { vRegsData = vRegistersData,
-                              addrReg = 0
-                            },
-                        timers =
-                          Timers
-                            { delay = 0,
-                              sound = 0
-                            },
+                        stack = Stack {stackData = thisStackData, nextStackAddr = Finite.finite 0},
+                        registers = Registers {vRegsData = vRegistersData, addrReg = 0},
+                        timers = Timers {delay = 0, sound = 0},
                         pc = Finite.finite 0
                       }
               callback (Right newState)

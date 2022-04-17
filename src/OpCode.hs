@@ -155,7 +155,18 @@ decode opCodeBin =
         0x009E -> Just $ decodeXKKOpCode SkipNextIfKeyPressed opCodeBin
         0x00A1 -> Just $ decodeXKKOpCode SkipNextIfKeyNotPressed opCodeBin
         _ -> Nothing
-    0xF000 -> undefined
+    0xF000 ->
+      case opCodeBin .&. 0x00FF of
+        0x0007 -> Just $ decodeXKKOpCode SetToDelayTimerValue opCodeBin
+        0x000A -> Just $ decodeXKKOpCode SetToKeyboardKey opCodeBin
+        0x0015 -> Just $ decodeXKKOpCode SetDelayTimerToRegister opCodeBin
+        0x0018 -> Just $ decodeXKKOpCode SetSoundTimerToRegister opCodeBin
+        0x001E -> Just $ decodeXKKOpCode IncrementAddressRegisterByRegister opCodeBin
+        0x0029 -> Just $ decodeXKKOpCode GetSpriteLetterAddress opCodeBin
+        0x0033 -> Just $ decodeXKKOpCode StoreBinaryCodedDecimalRep opCodeBin
+        0x0055 -> Just $ decodeXKKOpCode DumpRegisters opCodeBin
+        0x0065 -> Just $ decodeXKKOpCode LoadRegisters opCodeBin
+        _ -> Nothing
     _ -> Nothing
 
 decodeNNNOpCode :: (Finite 4096 -> a) -> OpCodeBin -> a

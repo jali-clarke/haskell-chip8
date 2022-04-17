@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoStarIsType #-}
+{-# LANGUAGE TypeOperators #-}
 
 module BaseTypes where
 
 import Data.Finite (Finite)
 import Data.Word (Word16)
+import GHC.TypeNats (type (*))
 
 type MemorySize = 4096
 
@@ -17,6 +19,8 @@ type NumKeyboardKeys = 16
 type ScreenWidth = 64
 
 type ScreenHeight = 32
+
+type ScreenBufferSize = ScreenWidth * ScreenHeight
 
 type OpCodeBin = Word16
 
@@ -33,3 +37,5 @@ type KeyboardKey = Finite NumKeyboardKeys
 type ScreenX = Finite ScreenWidth
 
 type ScreenY = Finite ScreenHeight
+
+type ScreenBufferAddress = Finite ScreenBufferSize

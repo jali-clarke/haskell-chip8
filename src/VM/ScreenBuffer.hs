@@ -19,11 +19,7 @@ import qualified Control.Monad.Reader as MTL
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
-import GHC.TypeNats (type (*), type (+))
-
-type ScreenBufferSize = ScreenWidth * ScreenHeight
-
-type ScreenBufferAddress = Finite ScreenBufferSize
+import GHC.TypeNats (type (+))
 
 type ScreenBufferData = SizedMVector.MVector ScreenBufferSize (PrimState IO) Bool
 

@@ -106,9 +106,11 @@ exec opCode =
           (/=) <$> Registers.readVRegister registerAddress0 <*> Registers.readVRegister registerAddress1
       VMState.incrementPC
       when registersAreNotEqual VMState.incrementPC
+    SetAddressRegisterToConst memoryAddress -> do
+      VMState.withRegistersAction $ Registers.writeAddrRegister memoryAddress
+      VMState.incrementPC
     _ -> unimplemented
 
--- SetAddressRegisterToConst MemoryAddress
 -- JumpToAddressWithOffset MemoryAddress
 -- SetToRandomWithMask VRegisterAddress Word8
 -- DrawSpriteAtCoords VRegisterAddress VRegisterAddress SpriteHeight

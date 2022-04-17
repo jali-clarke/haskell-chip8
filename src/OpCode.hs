@@ -98,7 +98,7 @@ data OpCode
   | -- FX29
     -- sets the address register to the location of the sprite for the character in VX
     -- characters 0-F (in hex) are represented by a 4x5 font
-    GetSpriteLetterAddress VRegisterAddress
+    GetLetterSpriteAddress VRegisterAddress
   | -- FX33
     -- take the decimal representation of VX and:
     -- place the hundreds digit in memory at the location specified by the address register
@@ -162,7 +162,7 @@ decode opCodeBin =
         0x0015 -> Just $ decodeXKKOpCode SetDelayTimerToRegister opCodeBin
         0x0018 -> Just $ decodeXKKOpCode SetSoundTimerToRegister opCodeBin
         0x001E -> Just $ decodeXKKOpCode IncrementAddressRegisterByRegister opCodeBin
-        0x0029 -> Just $ decodeXKKOpCode GetSpriteLetterAddress opCodeBin
+        0x0029 -> Just $ decodeXKKOpCode GetLetterSpriteAddress opCodeBin
         0x0033 -> Just $ decodeXKKOpCode StoreBinaryCodedDecimalRep opCodeBin
         0x0055 -> Just $ decodeXKKOpCode DumpRegisters opCodeBin
         0x0065 -> Just $ decodeXKKOpCode LoadRegisters opCodeBin

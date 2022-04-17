@@ -132,9 +132,12 @@ exec opCode =
       registerValue <- VMState.withRegistersAction $ Registers.readVRegister registerAddress
       VMState.withTimersAction $ Timers.setDelayTimer registerValue
       VMState.incrementPC
+    SetSoundTimerToRegister registerAddress -> do
+      registerValue <- VMState.withRegistersAction $ Registers.readVRegister registerAddress
+      VMState.withTimersAction $ Timers.setSoundTimer registerValue
+      VMState.incrementPC
     _ -> unimplemented opCode
 
--- SetSoundTimerToRegister VRegisterAddress
 -- IncrementAddressRegisterByRegister VRegisterAddress
 -- GetLetterSpriteAddress VRegisterAddress
 -- StoreBinaryCodedDecimalRep VRegisterAddress

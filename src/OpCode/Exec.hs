@@ -1,3 +1,7 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+
 module OpCode.Exec
   ( exec,
   )
@@ -7,17 +11,25 @@ import OpCode.Type
 import qualified VMState
 import qualified VMState.ScreenBuffer as ScreenBuffer
 import qualified VMState.Stack as Stack
+import GHC.TypeNats (type (+), type (<=))
+import qualified GHC.TypeNats as TypeNats
 
-exec :: OpCode -> VMState.Action stackSize ()
+exec :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2) => OpCode -> VMState.Action stackSize ()
 exec opCode =
   case opCode of
     MachineCodeCall _ -> unimplemented
     ClearDisplay -> VMState.withScreenBufferAction ScreenBuffer.clearBuffer *> VMState.incrementPC
-    ReturnFromSubroutine -> VMState.withStackAction Stack.popStack >>= VMState.setPC
+    ReturnFromSubroutine -> do
+      returnAddress <- VMState.withStackAction Stack.popStack
+      VMState.setPC returnAddress
+      VMState.incrementPC
     JumpToAddress memoryAddress -> VMState.setPC memoryAddress
+    CallSubroutine memoryAddress -> do
+      currentPC <- VMState.getPC
+      VMState.withStackAction $ Stack.pushStack currentPC
+      VMState.setPC memoryAddress
     _ -> unimplemented
 
--- CallSubroutine MemoryAddress
 -- SkipNextIfRegisterEqualToConst VRegisterAddress Word8
 -- SkipNextIfRegisterNotEqualToConst VRegisterAddress Word8
 -- SkipNextIfRegisterEqualToRegister VRegisterAddress VRegisterAddress

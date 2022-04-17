@@ -17,6 +17,7 @@ module VMState
     withTimersAction,
     getOpCodeBin,
     incrementPC,
+    getPC,
     setPC,
   )
 where
@@ -140,6 +141,9 @@ incrementPC = do
   case addTwo currentPC of
     Nothing -> Action $ MTL.throwError "incremented past end of vm memory"
     Just nextPC -> setPC nextPC
+
+getPC :: Action stackSize MemoryAddress
+getPC = Action $ MTL.gets pc
 
 setPC :: MemoryAddress -> Action stackSize ()
 setPC nextPC = Action $ MTL.modify (\vmState -> vmState {pc = nextPC})

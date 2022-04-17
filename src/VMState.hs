@@ -10,8 +10,7 @@ module VMState
     VMExec,
     withNewVMState,
     runVM,
-    readMemory,
-    writeMemory,
+    withMemory,
     readVRegister,
     writeVRegister,
     readAddrRegister,
@@ -36,7 +35,6 @@ import Data.Bits (unsafeShiftL, (.|.))
 import Data.ByteString (ByteString)
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
-import Data.Foldable (traverse_)
 import Data.Proxy (Proxy (..))
 import Data.Type.Equality ((:~:) (..))
 import qualified Data.Vector.Mutable as BoxedMVector
@@ -46,14 +44,11 @@ import Data.Word (Word8)
 import qualified GHC.TypeLits.Compare as TypeNats
 import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
-import SizedByteString (SizedByteString)
 import qualified SizedByteString
+import VMState.Memory (Memory)
+import qualified VMState.Memory as Memory
 import VMState.Timers (Timers)
 import qualified VMState.Timers as Timers
-
-type MemoryData = SizedMVector.MVector MemorySize (PrimState IO) Word8
-
-type ROMData programSize = SizedByteString programSize
 
 type VRegistersData = SizedMVector.MVector NumRegisters (PrimState IO) Word8
 
@@ -62,8 +57,6 @@ type StackData stackSize = SizedBoxedMVector.MVector stackSize (PrimState IO) Me
 type ProgramCounter = MemoryAddress
 
 type StackAddress stackSize = Finite stackSize
-
-newtype Memory = Memory {memData :: MemoryData}
 
 data Registers = Registers {vRegsData :: VRegistersData, addrReg :: MemoryAddress}
 
@@ -83,13 +76,13 @@ withNewVMState maxStackSize programRom callback =
         case TypeNats.isLE byteStringSize (Proxy :: Proxy MemorySize) of
           Nothing -> callback (Left "program rom is too large")
           Just Refl -> do
-            memoryData <- memoryDataWithLoadedProg sizedProgramRom
+            loadedMemory <- Memory.memoryDataWithLoadedProg sizedProgramRom
             unsizedStackData <- BoxedMVector.unsafeNew maxStackSize
             SizedBoxedMVector.withSized unsizedStackData $ \thisStackData -> do
               vRegistersData <- SizedMVector.unsafeNew
               let newState =
                     VMState
-                      { memory = Memory memoryData,
+                      { memory = loadedMemory,
                         stack = Stack {stackData = thisStackData, nextStackAddr = Finite.finite 0},
                         registers = Registers {vRegsData = vRegistersData, addrReg = 0},
                         timers = Timers.newTimers,
@@ -99,12 +92,6 @@ withNewVMState maxStackSize programRom callback =
 
 runVM :: VMState stackSize -> VMExec stackSize a -> IO (Either String a, VMState stackSize)
 runVM vmState (VMExec action) = State.runStateT (Except.runExceptT action) vmState
-
-readMemory :: MemoryAddress -> VMExec stackSize Word8
-readMemory memAddr = withMemoryData $ \memoryData -> SizedMVector.read memoryData memAddr
-
-writeMemory :: MemoryAddress -> Word8 -> VMExec stackSize ()
-writeMemory memAddr byte = withMemoryData $ \memoryData -> SizedMVector.write memoryData memAddr byte
 
 readVRegister :: VRegisterAddress -> VMExec stackSize Word8
 readVRegister regNumber = withVRegistersData $ \vRegistersData -> SizedMVector.read vRegistersData regNumber
@@ -152,11 +139,12 @@ getOpCodeBin = do
   let currentPC = pc vmState
   case addOne currentPC of
     Nothing -> VMExec $ Except.throwError "program counter (pc) is misaligned; pc + 1 is out of the address range"
-    Just currentPCPlusOne -> do
-      -- opcodes stored big-endian
-      op0 <- fmap fromIntegral (readMemory currentPC)
-      op1 <- fmap fromIntegral (readMemory currentPCPlusOne)
-      pure $ unsafeShiftL op0 8 .|. op1
+    Just currentPCPlusOne ->
+      withMemory $ \memoryState -> do
+        -- opcodes stored big-endian
+        op0 <- fmap fromIntegral $ Memory.readMemory memoryState currentPC
+        op1 <- fmap fromIntegral $ Memory.readMemory memoryState currentPCPlusOne
+        pure $ unsafeShiftL op0 8 .|. op1
 
 incrementPC :: VMExec stackSize ()
 incrementPC = do
@@ -168,28 +156,14 @@ incrementPC = do
 setPC :: ProgramCounter -> VMExec stackSize ()
 setPC nextPC = VMExec $ State.modify (\vmState -> vmState {pc = nextPC})
 
-withMemoryData :: (MemoryData -> IO a) -> VMExec stackSize a
-withMemoryData memoryAction = VMExec $ State.gets (memData . memory) >>= State.liftIO . memoryAction
+withMemory :: (Memory -> IO a) -> VMExec stackSize a
+withMemory memoryAction = VMExec $ State.gets memory >>= State.liftIO . memoryAction
 
 withVRegistersData :: (VRegistersData -> IO a) -> VMExec stackSize a
 withVRegistersData vRegistersAction = VMExec $ State.gets (vRegsData . registers) >>= State.liftIO . vRegistersAction
 
 setNextStackAddr :: State.MonadState (VMState stackSize) m => StackAddress stackSize -> m ()
 setNextStackAddr newNextStackAddr = State.modify (\vmState -> vmState {stack = (stack vmState) {nextStackAddr = newNextStackAddr}})
-
-memoryDataWithLoadedProg :: (TypeNats.KnownNat programSize, programSize <= MemorySize) => ROMData programSize -> IO MemoryData
-memoryDataWithLoadedProg programRom = do
-  let numOpCodes = SizedByteString.length' programRom
-      addresses = Finite.finitesProxy numOpCodes
-  memoryData <- SizedMVector.unsafeNew
-  traverse_ (writeOpCodeBinFromProg programRom memoryData) addresses
-  pure memoryData
-
-writeOpCodeBinFromProg :: (programSize <= MemorySize) => ROMData programSize -> MemoryData -> Finite programSize -> IO ()
-writeOpCodeBinFromProg programRom memoryData programAddress =
-  let programByte = SizedByteString.byteAt programRom programAddress
-      memoryAddress = Finite.finite (Finite.getFinite programAddress)
-   in SizedMVector.write memoryData memoryAddress programByte
 
 addOne :: (TypeNats.KnownNat n, n <= n + 2) => Finite n -> Maybe (Finite n)
 addOne n = Finite.strengthenN $ Finite.add n one

@@ -10,6 +10,7 @@ where
 import BaseTypes
 import Control.Monad (when)
 import Data.Bits (xor, (.&.), (.|.))
+import qualified Data.Finite as Finite
 import Data.Word (Word8)
 import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
@@ -74,9 +75,11 @@ exec opCode =
     XorRegisterInplace registerAddressDest registerAddressSrc -> do
       VMState.withRegistersAction $ inplaceBinaryOperation registerAddressDest registerAddressSrc xor
       VMState.incrementPC
+    IncrementByRegister registerAddressDest registerAddressSrc -> do
+      VMState.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (+) (\old new -> new < old)
+      VMState.incrementPC
     _ -> unimplemented
 
--- IncrementByRegister VRegisterAddress VRegisterAddress
 -- DecrementByRegister VRegisterAddress VRegisterAddress
 -- ShiftRight VRegisterAddress
 -- DecrementByRegisterReverse VRegisterAddress VRegisterAddress
@@ -105,3 +108,15 @@ inplaceBinaryOperation :: VRegisterAddress -> VRegisterAddress -> (Word8 -> Word
 inplaceBinaryOperation registerAddressDest registerAddressSrc operator = do
   srcRegisterValue <- Registers.readVRegister registerAddressSrc
   Registers.modifyVRegister registerAddressDest (\destRegisterValue -> operator destRegisterValue srcRegisterValue)
+
+inplaceBinaryOperationWithFlag :: VRegisterAddress -> VRegisterAddress -> (Word8 -> Word8 -> Word8) -> (Word8 -> Word8 -> Bool) -> Registers.Action ()
+inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc operator shouldSetFlag = do
+  srcRegisterValue <- Registers.readVRegister registerAddressSrc
+  destRegisterValue <- Registers.readVRegister registerAddressDest
+  let newDestRegisterValue = operator destRegisterValue srcRegisterValue
+  Registers.writeVRegister registerAddressDest newDestRegisterValue
+  let flagValue = if shouldSetFlag destRegisterValue newDestRegisterValue then 0x01 else 0x00
+  Registers.writeVRegister flagRegister flagValue
+
+flagRegister :: VRegisterAddress
+flagRegister = Finite.finite 15

@@ -1,11 +1,12 @@
-module VMState.Registers (
-  Registers,
-  newRegisters,
-  readVRegister,
-  writeVRegister,
-  readAddrRegister,
-  writeAddrRegister
-) where
+module VMState.Registers
+  ( Registers,
+    newRegisters,
+    readVRegister,
+    writeVRegister,
+    readAddrRegister,
+    writeAddrRegister,
+  )
+where
 
 import BaseTypes
 import Control.Monad.Primitive (PrimState)

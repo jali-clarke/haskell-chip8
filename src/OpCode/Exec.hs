@@ -123,13 +123,21 @@ exec opCode =
     DrawSpriteAtCoords _ _ _ -> unimplemented opCode
     SkipNextIfKeyPressed registerAddress -> do
       registerValue <- VM.withRegistersAction $ Registers.readVRegister registerAddress
-      keyIsPressed <- 
+      keyIsPressed <-
         case word8ToKeyboardKey registerValue of
           Nothing -> pure False
           Just keyboardKey -> VM.isKeyPressed keyboardKey
       when keyIsPressed VM.incrementPC
       VM.incrementPC
-    SkipNextIfKeyNotPressed _ -> unimplemented opCode
+    SkipNextIfKeyNotPressed registerAddress -> do
+      registerValue <- VM.withRegistersAction $ Registers.readVRegister registerAddress
+      keyIsNotPressed <-
+        fmap not $
+          case word8ToKeyboardKey registerValue of
+            Nothing -> pure False
+            Just keyboardKey -> VM.isKeyPressed keyboardKey
+      when keyIsNotPressed VM.incrementPC
+      VM.incrementPC
     SetToDelayTimerValue registerAddress -> do
       delayTimerValue <- VM.withTimersAction Timers.getDelayTimer
       VM.withRegistersAction $ Registers.writeVRegister registerAddress delayTimerValue

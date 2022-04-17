@@ -9,7 +9,7 @@ where
 
 import BaseTypes
 import Control.Monad (when)
-import Data.Bits (unsafeShiftR, xor, (.&.), (.|.))
+import Data.Bits (unsafeShiftL, unsafeShiftR, xor, (.&.), (.|.))
 import qualified Data.Finite as Finite
 import Data.Word (Word8)
 import GHC.TypeNats (type (+), type (<=))
@@ -100,9 +100,14 @@ exec opCode =
         Registers.writeVRegister registerAddress newRegisterValue
         Registers.writeVRegister flagRegister flagRegisterValue
       VMState.incrementPC
+    SkipNextIfRegisterNotEqualToRegister registerAddress0 registerAddress1 -> do
+      registersAreNotEqual <-
+        VMState.withRegistersAction $
+          (/=) <$> Registers.readVRegister registerAddress0 <*> Registers.readVRegister registerAddress1
+      VMState.incrementPC
+      when registersAreNotEqual VMState.incrementPC
     _ -> unimplemented
 
--- SkipNextIfRegisterNotEqualToRegister VRegisterAddress VRegisterAddress
 -- SetAddressRegisterToConst MemoryAddress
 -- JumpToAddressWithOffset MemoryAddress
 -- SetToRandomWithMask VRegisterAddress Word8

@@ -138,9 +138,9 @@ decode opCodeBin =
         0x0003 -> Just $ decodeXYKOpCode XorRegisterInplace opCodeBin
         0x0004 -> Just $ decodeXYKOpCode IncrementByRegister opCodeBin
         0x0005 -> Just $ decodeXYKOpCode DecrementByRegister opCodeBin
-        0x0006 -> undefined
+        0x0006 -> Just $ decodeXKKOpCode ShiftRight opCodeBin
         0x0007 -> Just $ decodeXYKOpCode DecrementByRegisterReverse opCodeBin
-        0x000E -> undefined
+        0x000E -> Just $ decodeXKKOpCode ShiftLeft opCodeBin
         _ -> Nothing
     0x9000 ->
       case opCodeBin .&. 0x000F of
@@ -175,6 +175,11 @@ decodeXYNOpCode toDecodedType opCodeBin =
       targetRegisterY = getNybble (Finite.finite 4) opCodeBin
       spriteHeight = getNybble (Finite.finite 0) opCodeBin
    in toDecodedType targetRegisterX targetRegisterY spriteHeight
+
+decodeXKKOpCode :: (VRegisterAddress -> a) -> OpCodeBin -> a
+decodeXKKOpCode toDecodedType opCodeBin =
+  let targetRegister = getNybble (Finite.finite 8) opCodeBin
+   in toDecodedType targetRegister
 
 getNybble :: Finite 16 -> OpCodeBin -> Finite 16
 getNybble offset opCodeBin =

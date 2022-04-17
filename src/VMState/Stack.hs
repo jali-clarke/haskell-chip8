@@ -17,8 +17,8 @@ where
 
 import BaseTypes
 import qualified Control.Monad.Except as MTL
-import qualified Control.Monad.State as MTL
 import Control.Monad.Primitive (PrimState)
+import qualified Control.Monad.State as MTL
 import qualified Data.Finite as Finite
 import qualified Data.Vector.Mutable as BoxedMVector
 import qualified Data.Vector.Mutable.Sized as SizedBoxedMVector

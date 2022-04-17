@@ -13,8 +13,8 @@ module VMState.Registers
 where
 
 import BaseTypes
-import qualified Control.Monad.State as MTL
 import Control.Monad.Primitive (PrimState)
+import qualified Control.Monad.State as MTL
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
 import Data.Word (Word8)
 

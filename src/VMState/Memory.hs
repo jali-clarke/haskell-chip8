@@ -13,8 +13,8 @@ module VMState.Memory
 where
 
 import BaseTypes
-import qualified Control.Monad.Reader as MTL
 import Control.Monad.Primitive (PrimState)
+import qualified Control.Monad.Reader as MTL
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
 import Data.Foldable (traverse_)

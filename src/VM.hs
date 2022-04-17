@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module VMState
+module VM
   ( VMState,
     Action,
     withNewVMState,
@@ -38,16 +38,16 @@ import qualified GHC.TypeNats as TypeNats
 import qualified SizedByteString
 import qualified System.Random as Random
 import TypeNatsHelpers
-import VMState.Memory (Memory)
-import qualified VMState.Memory as Memory
-import VMState.Registers (Registers)
-import qualified VMState.Registers as Registers
-import VMState.ScreenBuffer (ScreenBuffer)
-import qualified VMState.ScreenBuffer as ScreenBuffer
-import VMState.Stack (Stack)
-import qualified VMState.Stack as Stack
-import VMState.Timers (Timers)
-import qualified VMState.Timers as Timers
+import VM.Memory (Memory)
+import qualified VM.Memory as Memory
+import VM.Registers (Registers)
+import qualified VM.Registers as Registers
+import VM.ScreenBuffer (ScreenBuffer)
+import qualified VM.ScreenBuffer as ScreenBuffer
+import VM.Stack (Stack)
+import qualified VM.Stack as Stack
+import VM.Timers (Timers)
+import qualified VM.Timers as Timers
 
 data VMState stackSize = VMState
   { memory :: Memory,

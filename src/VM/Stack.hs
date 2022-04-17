@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module VMState.Stack
+module VM.Stack
   ( Stack,
     Action,
     runAction,

@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module VMState.Registers
+module VM.Registers
   ( Registers,
     Action,
     runAction,

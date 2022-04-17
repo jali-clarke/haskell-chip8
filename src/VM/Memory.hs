@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module VMState.Memory
+module VM.Memory
   ( Memory,
     Action,
     runAction,

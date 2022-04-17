@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE NoStarIsType #-}
 
-module VMState.ScreenBuffer
+module VM.ScreenBuffer
   ( ScreenBuffer,
     Action,
     runAction,

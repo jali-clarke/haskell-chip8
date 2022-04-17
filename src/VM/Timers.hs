@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module VMState.Timers
+module VM.Timers
   ( Timers,
     Action,
     runAction,

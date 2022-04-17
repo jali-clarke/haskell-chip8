@@ -28,6 +28,7 @@ library:
   - finite-typelits
   - mtl
   - primitive
+  - random
   - typelits-witnesses
   - vector
   - vector-sized

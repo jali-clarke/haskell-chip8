@@ -19,6 +19,7 @@ module VMState
     incrementPC,
     getPC,
     setPC,
+    randomByte,
     throwVMError
   )
 where
@@ -31,9 +32,11 @@ import Data.ByteString (ByteString)
 import qualified Data.Finite as Finite
 import Data.Proxy (Proxy (..))
 import Data.Type.Equality ((:~:) (..))
+import Data.Word (Word8)
 import qualified GHC.TypeLits.Compare as TypeNats
 import qualified GHC.TypeNats as TypeNats
 import qualified SizedByteString
+import qualified System.Random as Random
 import TypeNatsHelpers
 import VMState.Memory (Memory)
 import qualified VMState.Memory as Memory
@@ -148,6 +151,9 @@ getPC = Action $ MTL.gets pc
 
 setPC :: MemoryAddress -> Action stackSize ()
 setPC nextPC = Action $ MTL.modify (\vmState -> vmState {pc = nextPC})
+
+randomByte :: Action stackSize Word8
+randomByte = Action $ MTL.liftIO Random.randomIO
 
 throwVMError :: String -> Action stackSize a
 throwVMError errMsg = Action $ MTL.throwError errMsg

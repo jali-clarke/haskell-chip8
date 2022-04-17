@@ -115,9 +115,11 @@ exec opCode =
       case Finite.strengthenN $ Finite.add baseMemoryAddress (word8ToFinite registerValue) of
         Nothing -> VMState.throwVMError "attempted to jump beyond memory bounds"
         Just jumpAddress -> VMState.setPC jumpAddress
+    SetToRandomWithMask registerAddress mask -> do
+      randomByte <- VMState.randomByte
+      VMState.withRegistersAction $ Registers.writeVRegister registerAddress (randomByte .&. mask)
     _ -> unimplemented opCode
 
--- SetToRandomWithMask VRegisterAddress Word8
 -- DrawSpriteAtCoords VRegisterAddress VRegisterAddress SpriteHeight
 -- SkipNextIfKeyPressed VRegisterAddress
 -- SkipNextIfKeyNotPressed VRegisterAddress

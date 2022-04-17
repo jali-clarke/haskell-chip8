@@ -127,8 +127,22 @@ decode opCodeBin =
         _ -> Nothing
     0x6000 -> Just $ decodeXNNOpCode SetToConst opCodeBin
     0x7000 -> Just $ decodeXNNOpCode IncrementByConst opCodeBin
-    0x8000 -> undefined
-    0x9000 -> undefined
+    0x8000 ->
+      case opCodeBin .&. 0x000F of
+        0x0000 -> Just $ decodeXYKOpCode SetToRegister opCodeBin
+        0x0001 -> Just $ decodeXYKOpCode OrRegisterInplace opCodeBin
+        0x0002 -> Just $ decodeXYKOpCode AndRegisterInplace opCodeBin
+        0x0003 -> Just $ decodeXYKOpCode XorRegisterInplace opCodeBin
+        0x0004 -> Just $ decodeXYKOpCode IncrementByRegister opCodeBin
+        0x0005 -> Just $ decodeXYKOpCode DecrementByRegister opCodeBin
+        0x0006 -> undefined
+        0x0007 -> Just $ decodeXYKOpCode DecrementByRegisterReverse opCodeBin
+        0x000E -> undefined
+        _ -> Nothing
+    0x9000 ->
+      case opCodeBin .&. 0x000F of
+        0x0000 -> Just $ decodeXYKOpCode SkipNextIfRegisterNotEqualToRegister opCodeBin
+        _ -> Nothing
     0xA000 -> Just $ decodeNNNOpCode SetAddressRegisterToConst opCodeBin
     0xB000 -> Just $ decodeNNNOpCode JumpToAddressWithOffset opCodeBin
     0xC000 -> Just $ decodeXNNOpCode SetToRandomWithMask opCodeBin

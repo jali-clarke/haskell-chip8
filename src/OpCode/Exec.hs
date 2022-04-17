@@ -56,9 +56,13 @@ exec opCode =
     IncrementByConst registerAddress incByte -> do
       VMState.withRegistersAction $ Registers.modifyVRegister registerAddress (+ incByte)
       VMState.incrementPC
+    SetToRegister registerAddressDest registerAddressSrc -> do
+      VMState.withRegistersAction $ do
+        registerValue <- Registers.readVRegister registerAddressSrc
+        Registers.writeVRegister registerAddressDest registerValue
+      VMState.incrementPC
     _ -> unimplemented
 
--- SetToRegister VRegisterAddress VRegisterAddress
 -- OrRegisterInplace VRegisterAddress VRegisterAddress
 -- AndRegisterInplace VRegisterAddress VRegisterAddress
 -- XorRegisterInplace VRegisterAddress VRegisterAddress

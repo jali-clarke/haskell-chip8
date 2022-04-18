@@ -19,8 +19,8 @@ import Control.Monad.Primitive (PrimState)
 import qualified Control.Monad.Reader as MTL
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
-import qualified Data.Vector.Unboxed.Sized as SizedVector
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
+import qualified Data.Vector.Unboxed.Sized as SizedVector
 import GHC.TypeNats (type (+))
 
 type ScreenBufferData = SizedMVector.MVector ScreenBufferSize (PrimState IO) Bool

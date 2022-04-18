@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE NoStarIsType #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE NoStarIsType #-}
 
 module BaseTypes where
 

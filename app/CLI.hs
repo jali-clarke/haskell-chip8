@@ -1,10 +1,10 @@
-module CLI (Options(..), parser) where
+module CLI (Options (..), parser) where
 
 import Options.Applicative
 
-data Options = Options {
-  romFilePath :: FilePath,
-  maxStackSize :: Int
+data Options = Options
+  { romFilePath :: FilePath,
+    maxStackSize :: Int
   }
 
 parser :: Parser Options

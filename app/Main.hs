@@ -10,4 +10,6 @@ main =
    in Options.execParser parserWithInfo >>= execCLIOpts
 
 execCLIOpts :: CLI.Options -> IO ()
-execCLIOpts options = putStrLn $ "got: " <> CLI.romFilePath options
+execCLIOpts options =
+  putStrLn $
+    "romFilePath: " <> CLI.romFilePath options <> " maxStackSize: " <> show (CLI.maxStackSize options)

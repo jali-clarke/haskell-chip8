@@ -9,11 +9,13 @@ build with either `cabal` (using `hpack`) or `nix`.
 ```sh
 $ haskell-chip8 --help
 
-Usage: haskell-chip8 ROM_FILE_PATH
+Usage: haskell-chip8 ROM_FILE_PATH [--max-stack-size MAX_STACK_SIZE]
   emulate execution of a CHIP-8 rom
 
 Available options:
   ROM_FILE_PATH            path to rom file
+  --max-stack-size MAX_STACK_SIZE
+                           max stack size / recursion depth (default: 50)
   -h,--help                Show this help text
 ```
 

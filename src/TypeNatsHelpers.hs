@@ -15,14 +15,14 @@ import Data.Finite (Finite)
 import qualified Data.Finite as Finite
 import Data.Type.Equality ((:~:) (..))
 import qualified GHC.TypeLits.Compare as TypeNats
-import GHC.TypeLits.Witnesses (SNat(..), (%+))
-import qualified GHC.TypeNats as TypeNats
+import GHC.TypeLits.Witnesses (SNat (..), (%+))
 import GHC.TypeNats (type (+))
+import qualified GHC.TypeNats as TypeNats
 
 addOne :: forall n. TypeNats.KnownNat n => Finite n -> Maybe (Finite n)
 addOne n =
   case (SNat :: SNat n) %+ (SNat :: SNat 2) of
-    SNat -> 
+    SNat ->
       case TypeNats.isLE (SNat :: SNat n) (SNat :: SNat (n + 2)) of
         Nothing -> Nothing
         Just Refl -> Finite.strengthenN $ Finite.add n one
@@ -30,7 +30,7 @@ addOne n =
 addTwo :: forall n. TypeNats.KnownNat n => Finite n -> Maybe (Finite n)
 addTwo n =
   case (SNat :: SNat n) %+ (SNat :: SNat 3) of
-    SNat -> 
+    SNat ->
       case TypeNats.isLE (SNat :: SNat n) (SNat :: SNat (n + 3)) of
         Nothing -> Nothing
         Just Refl -> Finite.strengthenN $ Finite.add n two

@@ -5,12 +5,12 @@
 import qualified CLI
 import Control.Monad (forever)
 import qualified Data.ByteString as ByteString
+import qualified GHC.TypeNats as TypeNats
+import qualified OpCode
 import Options.Applicative ((<**>))
 import qualified Options.Applicative as Options
-import qualified OpCode
 import qualified VM
-import VM.MachineCallbacks (MachineCallbacks(..))
-import qualified GHC.TypeNats as TypeNats
+import VM.MachineCallbacks (MachineCallbacks (..))
 
 main :: IO ()
 main =
@@ -21,23 +21,24 @@ main =
 
 execCLIOpts :: CLI.Options -> IO ()
 execCLIOpts options =
-  let callbacks = MachineCallbacks {
-          blockingGetKeyboardKey = pure 'f',
-          isKeyPressed = \_ -> pure False,
-          randomByte = pure 0,
-          renderFrozenScreenBufferData = \_ -> pure ()
-        }
+  let callbacks =
+        MachineCallbacks
+          { blockingGetKeyboardKey = pure 'f',
+            isKeyPressed = \_ -> pure False,
+            randomByte = pure 0,
+            renderFrozenScreenBufferData = \_ -> pure ()
+          }
    in do
-    romBytes <- ByteString.readFile (CLI.romFilePath options)
-    let maxStackSize = CLI.maxStackSize options
-    VM.withNewVMState callbacks maxStackSize romBytes $ \maybeVmState ->
-      case maybeVmState of
-        Left err -> putStrLn err
-        Right vmState -> do
-          (maybeResult, _) <- VM.runAction vmLoop vmState
-          case maybeResult of
+        romBytes <- ByteString.readFile (CLI.romFilePath options)
+        let maxStackSize = CLI.maxStackSize options
+        VM.withNewVMState callbacks maxStackSize romBytes $ \maybeVmState ->
+          case maybeVmState of
             Left err -> putStrLn err
-            Right () -> pure ()
+            Right vmState -> do
+              (maybeResult, _) <- VM.runAction vmLoop vmState
+              case maybeResult of
+                Left err -> putStrLn err
+                Right () -> pure ()
 
 vmLoop :: TypeNats.KnownNat stackSize => VM.Action stackSize ()
 vmLoop =

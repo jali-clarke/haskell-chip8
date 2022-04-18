@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "chip8-roms": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1636599799,
+        "narHash": "sha256-hHdvSA9+hh/UAfjEwGguUbTjYMYizga8MycVx2jxWwU=",
+        "owner": "loktar00",
+        "repo": "chip8",
+        "rev": "4a592d9530d16336e70674d86a5994bae34210f5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "loktar00",
+        "repo": "chip8",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "locked": {
         "lastModified": 1649676176,
@@ -33,6 +49,7 @@
     },
     "root": {
       "inputs": {
+        "chip8-roms": "chip8-roms",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs"
       }

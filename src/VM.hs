@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -65,18 +66,18 @@ data VMState stackSize = VMState
 
 newtype Action stackSize a = Action (MTL.ExceptT String (MTL.StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
 
-withNewVMState :: MachineCallbacks -> Int -> ByteString -> (forall stackSize. Either String (VMState stackSize) -> IO r) -> IO r
+withNewVMState :: MachineCallbacks -> Int -> ByteString -> (forall stackSize. TypeNats.KnownNat stackSize => Either String (VMState stackSize) -> IO r) -> IO r
 withNewVMState theseMachineCallbacks maxStackSize programRom callback =
-  SizedByteString.withSized programRom $ \sizedProgramRom -> do
-    let byteStringSize = SizedByteString.length' sizedProgramRom
-    case TypeNats.sameNat byteStringSize (Proxy :: Proxy 0) of
-      Just Refl -> callback (Left "program is empty")
-      Nothing ->
-        case TypeNats.isLE byteStringSize (Proxy :: Proxy MemorySize) of
-          Nothing -> callback (Left "program rom is too large")
-          Just Refl -> do
-            loadedMemory <- Memory.memoryWithLoadedProgram sizedProgramRom
-            Stack.withNewStack maxStackSize $ \newStack -> do
+  Stack.withNewStack maxStackSize $ \(newStack :: Stack thisStackSize) ->
+    SizedByteString.withSized programRom $ \sizedProgramRom -> do
+      let byteStringSize = SizedByteString.length' sizedProgramRom
+      case TypeNats.sameNat byteStringSize (Proxy :: Proxy 0) of
+        Just Refl -> callback (Left "program is empty" :: Either String (VMState thisStackSize))
+        Nothing ->
+          case TypeNats.isLE byteStringSize (Proxy :: Proxy MemorySize) of
+            Nothing -> callback (Left "program rom is too large" :: Either String (VMState thisStackSize))
+            Just Refl -> do
+              loadedMemory <- Memory.memoryWithLoadedProgram sizedProgramRom
               newRegisters <- Registers.newRegisters
               newScreenBuffer <- ScreenBuffer.newScreenBuffer
               let newState =

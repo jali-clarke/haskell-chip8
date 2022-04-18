@@ -22,7 +22,6 @@ import qualified Control.Monad.State as MTL
 import qualified Data.Finite as Finite
 import qualified Data.Vector.Mutable as BoxedMVector
 import qualified Data.Vector.Mutable.Sized as SizedBoxedMVector
-import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
 import TypeNatsHelpers
 
@@ -35,7 +34,7 @@ newtype Action stackSize a = Action (MTL.ExceptT String (MTL.StateT (Stack stack
 runAction :: Action stackSize a -> Stack stackSize -> IO (Either String a, Stack stackSize)
 runAction (Action action) stack = MTL.runStateT (MTL.runExceptT action) stack
 
-withNewStack :: Int -> (forall stackSize. Stack stackSize -> IO r) -> IO r
+withNewStack :: Int -> (forall stackSize. TypeNats.KnownNat stackSize => Stack stackSize -> IO r) -> IO r
 withNewStack maxStackSize callback = do
   unsizedStackData <- BoxedMVector.unsafeNew maxStackSize
   SizedBoxedMVector.withSized unsizedStackData $ \thisStackData ->
@@ -52,7 +51,7 @@ popStack =
         MTL.put $ stack {nextStackAddr = stackLastElemAddr}
         pure memAddress
 
-pushStack :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2) => MemoryAddress -> Action stackSize ()
+pushStack :: TypeNats.KnownNat stackSize => MemoryAddress -> Action stackSize ()
 pushStack returnAddr =
   Action $ do
     stack <- MTL.get

@@ -13,7 +13,6 @@ import Data.Bits (unsafeShiftL, unsafeShiftR, xor, (.&.), (.|.))
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
 import Data.Word (Word8)
-import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
 import OpCode.Type
 import qualified VM
@@ -22,7 +21,7 @@ import qualified VM.ScreenBuffer as ScreenBuffer
 import qualified VM.Stack as Stack
 import qualified VM.Timers as Timers
 
-exec :: (TypeNats.KnownNat stackSize, stackSize <= stackSize + 2) => OpCode -> VM.Action stackSize ()
+exec :: TypeNats.KnownNat stackSize => OpCode -> VM.Action stackSize ()
 exec opCode =
   case opCode of
     MachineCodeCall _ -> unimplemented opCode

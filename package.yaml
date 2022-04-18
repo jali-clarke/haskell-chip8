@@ -14,6 +14,7 @@ executables:
     - app
     dependencies:
     - base
+    - bytestring
     - haskell-chip8
     - optparse-applicative
     ghc-options:

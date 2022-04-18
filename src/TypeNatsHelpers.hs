@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -11,14 +13,27 @@ where
 
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
-import GHC.TypeNats (type (+), type (<=))
+import Data.Type.Equality ((:~:) (..))
+import qualified GHC.TypeLits.Compare as TypeNats
+import GHC.TypeLits.Witnesses (SNat(..), (%+))
 import qualified GHC.TypeNats as TypeNats
+import GHC.TypeNats (type (+))
 
-addOne :: (TypeNats.KnownNat n, n <= n + 2) => Finite n -> Maybe (Finite n)
-addOne n = Finite.strengthenN $ Finite.add n one
+addOne :: forall n. TypeNats.KnownNat n => Finite n -> Maybe (Finite n)
+addOne n =
+  case (SNat :: SNat n) %+ (SNat :: SNat 2) of
+    SNat -> 
+      case TypeNats.isLE (SNat :: SNat n) (SNat :: SNat (n + 2)) of
+        Nothing -> Nothing
+        Just Refl -> Finite.strengthenN $ Finite.add n one
 
-addTwo :: (TypeNats.KnownNat n, n <= n + 3) => Finite n -> Maybe (Finite n)
-addTwo n = Finite.strengthenN $ Finite.add n two
+addTwo :: forall n. TypeNats.KnownNat n => Finite n -> Maybe (Finite n)
+addTwo n =
+  case (SNat :: SNat n) %+ (SNat :: SNat 3) of
+    SNat -> 
+      case TypeNats.isLE (SNat :: SNat n) (SNat :: SNat (n + 3)) of
+        Nothing -> Nothing
+        Just Refl -> Finite.strengthenN $ Finite.add n two
 
 subOne :: Finite n -> Maybe (Finite n)
 subOne n =

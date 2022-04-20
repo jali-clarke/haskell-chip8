@@ -14,6 +14,8 @@ type NumRegisters = 16
 
 type MaxSpriteHeight = 16
 
+type MaxSpriteWidth = 8
+
 type NumKeyboardKeys = 16
 
 type ScreenWidth = 64
@@ -31,6 +33,8 @@ type VRegisterAddress = Finite NumRegisters
 type StackAddress stackSize = Finite stackSize
 
 type SpriteHeight = Finite MaxSpriteHeight
+
+type SpriteWidth = Finite MaxSpriteWidth
 
 type KeyboardKey = Finite NumKeyboardKeys
 

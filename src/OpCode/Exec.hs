@@ -15,7 +15,9 @@ import qualified Data.Finite as Finite
 import Data.Word (Word8)
 import qualified GHC.TypeNats as TypeNats
 import OpCode.Type
+import TypeNatsHelpers
 import qualified VM
+import qualified VM.Memory as Memory
 import qualified VM.Registers as Registers
 import qualified VM.ScreenBuffer as ScreenBuffer
 import qualified VM.Stack as Stack
@@ -112,14 +114,24 @@ exec opCode =
       VM.incrementPC
     JumpToAddressWithOffset baseMemoryAddress -> do
       registerValue <- VM.withRegistersAction $ Registers.readVRegister v0Register
-      case Finite.strengthenN $ Finite.add baseMemoryAddress (word8ToFinite registerValue) of
+      case Finite.strengthenN $ Finite.add baseMemoryAddress (word8ToFinite registerValue :: Finite 255) of
         Nothing -> VM.throwVMError "attempted to jump beyond memory bounds"
         Just jumpAddress -> VM.setPC jumpAddress
     SetToRandomWithMask registerAddress mask -> do
       randomByte <- VM.randomByte
       VM.withRegistersAction $ Registers.writeVRegister registerAddress (randomByte .&. mask)
       VM.incrementPC
-    DrawSpriteAtCoords _ _ _ -> unimplemented opCode
+    DrawSpriteAtCoords registerAddressX registerAddressY spriteHeight -> do
+      (basePosX, basePosY, baseSpriteAddress) <-
+        VM.withRegistersAction $ do
+          basePosX <- fmap word8ToFinite $ Registers.readVRegister registerAddressX
+          basePosY <- fmap word8ToFinite $ Registers.readVRegister registerAddressY
+          baseSpriteAddress <- Registers.readAddrRegister
+          pure (basePosX, basePosY, baseSpriteAddress)
+      anyFlippedPixels <- drawSprite basePosX basePosY baseSpriteAddress spriteHeight False
+      VM.withRegistersAction $ Registers.writeVRegister flagRegister (toFlagValue anyFlippedPixels)
+      VM.renderFrozenScreenBufferData
+      VM.incrementPC
     SkipNextIfKeyPressed registerAddress -> do
       registerValue <- VM.withRegistersAction $ Registers.readVRegister registerAddress
       keyIsPressed <- checkWord8IsPressed registerValue
@@ -155,6 +167,38 @@ exec opCode =
 unimplemented :: OpCode -> VM.Action stackSize ()
 unimplemented opCode = VM.throwVMError $ "unimplemented opCode: " <> show opCode
 
+drawSprite :: ScreenX -> ScreenY -> MemoryAddress -> SpriteHeight -> Bool -> VM.Action stackSize Bool
+drawSprite basePosX basePosY baseSpriteAddress spriteHeight anyFlippedPixels =
+  case subOne spriteHeight of
+    Nothing -> pure anyFlippedPixels
+    Just nextSpriteHeight -> do
+      rowData <- VM.withMemoryAction $ Memory.readMemory baseSpriteAddress
+      anyFlippedPixelsInRow <- VM.withScreenBufferAction $ drawSpriteRow basePosX basePosY rowData False
+      let anyFlippedPixels' = anyFlippedPixels || anyFlippedPixelsInRow
+      case addOne basePosY of
+        Nothing -> pure anyFlippedPixels'
+        Just nextPosY ->
+          case addOne baseSpriteAddress of
+            Nothing ->
+              if nextSpriteHeight == 0
+                then pure anyFlippedPixels'
+                else VM.throwVMError $ "attempted to read memory out of bounds when drawing row " <> show nextPosY <> " of sprite"
+            Just nextSpriteAddress -> drawSprite basePosX nextPosY nextSpriteAddress nextSpriteHeight anyFlippedPixels'
+
+drawSpriteRow :: ScreenX -> ScreenY -> Word8 -> Bool -> ScreenBuffer.Action Bool
+drawSpriteRow rowStartX rowStartY rowData anyFlippedPixels =
+  if rowData == 0x00
+    then pure anyFlippedPixels
+    else do
+      pixelWasFlipped <-
+        if rowData .&. 0x80 /= 0x00
+          then ScreenBuffer.setPixelOn rowStartX rowStartY
+          else pure False
+      let anyFlippedPixels' = anyFlippedPixels || pixelWasFlipped
+      case addOne rowStartX of
+        Nothing -> pure anyFlippedPixels'
+        Just nextRowX -> drawSpriteRow nextRowX rowStartY (unsafeShiftL rowData 1) anyFlippedPixels'
+
 inplaceBinaryOperation :: VRegisterAddress -> VRegisterAddress -> (Word8 -> Word8 -> Word8) -> Registers.Action ()
 inplaceBinaryOperation registerAddressDest registerAddressSrc operator = do
   srcRegisterValue <- Registers.readVRegister registerAddressSrc
@@ -178,7 +222,7 @@ checkWord8IsPressed registerValue =
 toFlagValue :: Bool -> Word8
 toFlagValue bool = if bool then 0x01 else 0x00
 
-word8ToFinite :: Word8 -> Finite 255
+word8ToFinite :: TypeNats.KnownNat n => Word8 -> Finite n
 word8ToFinite = Finite.finite . fromIntegral
 
 keyboardKeyToWord8 :: KeyboardKey -> Word8

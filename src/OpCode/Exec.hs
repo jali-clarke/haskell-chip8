@@ -158,7 +158,15 @@ exec opCode =
       registerValue <- VM.withRegistersAction $ Registers.readVRegister registerAddress
       VM.withTimersAction $ Timers.setSoundTimer registerValue
       VM.incrementPC
-    IncrementAddressRegisterByRegister _ -> unimplemented opCode
+    IncrementAddressRegisterByRegister registerAddress -> do
+      (registerValue, addressRegisterValue) <- VM.withRegistersAction $ do
+        registerValue <- Registers.readVRegister registerAddress
+        addressRegisterValue <- Registers.readAddrRegister
+        pure (registerValue, addressRegisterValue)
+      case Finite.strengthenN $ Finite.add addressRegisterValue (word8ToFinite registerValue :: Finite 255) of
+        Nothing -> VM.throwVMError "attempted to increment address register beyond memory bounds"
+        Just newAddressRegisterValue -> VM.withRegistersAction $ Registers.writeAddrRegister newAddressRegisterValue
+      VM.incrementPC
     GetLetterSpriteAddress _ -> unimplemented opCode
     StoreBinaryCodedDecimalRep _ -> unimplemented opCode
     DumpRegisters _ -> unimplemented opCode

@@ -28,7 +28,8 @@ runAction (Action action) timers = MTL.runState action timers
 dumpState :: Timers -> IO ()
 dumpState timers = do
   putStrLn "Timers: "
-  putStrLn $ "  delay = " <> ShowHelpers.showWord8 (delay timers) <> " ; sound = " <> ShowHelpers.showWord8 (sound timers)
+  putStrLn $ "  Delay: " <> ShowHelpers.showWord8 (delay timers)
+  putStrLn $ "  Sound: " <> ShowHelpers.showWord8 (sound timers)
 
 newTimers :: Timers
 newTimers = Timers {delay = 0, sound = 0}

@@ -29,6 +29,7 @@ exec opCode =
     MachineCodeCall _ -> unimplemented opCode
     ClearDisplay -> do
       VM.withScreenBufferAction ScreenBuffer.clearBuffer
+      VM.renderFrozenScreenBufferData
       VM.incrementPC
     ReturnFromSubroutine -> do
       returnAddress <- VM.withStackAction Stack.popStack

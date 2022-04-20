@@ -15,6 +15,7 @@
 
         ghc = pkgs.haskell.packages.ghc8107.ghcWithPackages (
           ps: [
+            ps.ansi-terminal
             ps.optparse-applicative
             ps.sdl2
             ps.typelits-witnesses

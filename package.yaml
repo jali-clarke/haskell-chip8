@@ -13,10 +13,12 @@ executables:
     source-dirs:
     - app
     dependencies:
+    - ansi-terminal
     - base
     - bytestring
     - haskell-chip8
     - optparse-applicative
+    - vector-sized
     ghc-options:
     - -O2
     - -Wall

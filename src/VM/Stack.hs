@@ -9,6 +9,7 @@ module VM.Stack
   ( Stack,
     Action,
     runAction,
+    dumpState,
     withNewStack,
     popStack,
     pushStack,
@@ -16,12 +17,14 @@ module VM.Stack
 where
 
 import BaseTypes
+import Control.Monad (forM_)
 import qualified Control.Monad.Except as MTL
 import Control.Monad.Primitive (PrimState)
 import qualified Control.Monad.State as MTL
 import qualified Data.Vector.Mutable as BoxedMVector
 import qualified Data.Vector.Mutable.Sized as SizedBoxedMVector
 import qualified GHC.TypeNats as TypeNats
+import qualified ShowHelpers
 import TypeNatsHelpers
 
 type StackData stackSize = SizedBoxedMVector.MVector stackSize (PrimState IO) MemoryAddress
@@ -32,6 +35,16 @@ newtype Action stackSize a = Action (MTL.ExceptT String (MTL.StateT (Stack stack
 
 runAction :: Action stackSize a -> Stack stackSize -> IO (Either String a, Stack stackSize)
 runAction (Action action) stack = MTL.runStateT (MTL.runExceptT action) stack
+
+dumpState :: TypeNats.KnownNat stackSize => Stack stackSize -> IO ()
+dumpState stack = do
+  putStrLn "Stack (grows downwards):"
+  case subOne (nextStackAddr stack) of
+    Nothing -> pure ()
+    Just topOfStack ->
+      forM_ [0 .. topOfStack] $ \stackAddr -> do
+        stackAddrData <- SizedBoxedMVector.read (stackData stack) stackAddr
+        putStrLn $ "  " <> ShowHelpers.showMemoryAddress stackAddrData
 
 withNewStack :: Int -> (forall stackSize. TypeNats.KnownNat stackSize => Stack stackSize -> IO r) -> IO r
 withNewStack maxStackSize callback = do

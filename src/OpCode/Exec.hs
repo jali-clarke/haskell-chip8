@@ -166,14 +166,17 @@ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc operator s
   destRegisterValue <- Registers.readVRegister registerAddressDest
   let newDestRegisterValue = operator destRegisterValue srcRegisterValue
   Registers.writeVRegister registerAddressDest newDestRegisterValue
-  let flagValue = if shouldSetFlag destRegisterValue srcRegisterValue newDestRegisterValue then 0x01 else 0x00
-  Registers.writeVRegister flagRegister flagValue
+  Registers.writeVRegister flagRegister $
+    toFlagValue (shouldSetFlag destRegisterValue srcRegisterValue newDestRegisterValue)
 
 checkWord8IsPressed :: Word8 -> VM.Action stackSize Bool
 checkWord8IsPressed registerValue =
   case word8ToKeyboardKey registerValue of
     Nothing -> pure False
     Just keyboardKey -> VM.isKeyPressed keyboardKey
+
+toFlagValue :: Bool -> Word8
+toFlagValue bool = if bool then 0x01 else 0x00
 
 word8ToFinite :: Word8 -> Finite 255
 word8ToFinite = Finite.finite . fromIntegral

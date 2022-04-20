@@ -16,7 +16,7 @@ where
 
 import qualified Control.Monad.State.Strict as MTL
 import Data.Word (Word8)
-import qualified Numeric
+import qualified ShowHelpers
 
 data Timers = Timers {delay :: {-# UNPACK #-} !Word8, sound :: {-# UNPACK #-} !Word8}
 
@@ -28,7 +28,7 @@ runAction (Action action) timers = MTL.runState action timers
 dumpState :: Timers -> IO ()
 dumpState timers = do
   putStrLn "Timers: "
-  putStrLn $ "delay = 0x" <> Numeric.showHex (delay timers) "" <> " ; sound = 0x" <> Numeric.showHex (sound timers) ""
+  putStrLn $ "  delay = " <> ShowHelpers.showWord8 (delay timers) <> " ; sound = " <> ShowHelpers.showWord8 (sound timers)
 
 newTimers :: Timers
 newTimers = Timers {delay = 0, sound = 0}

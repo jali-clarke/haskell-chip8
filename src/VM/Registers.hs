@@ -4,6 +4,7 @@ module VM.Registers
   ( Registers,
     Action,
     runAction,
+    dumpState,
     newRegisters,
     readVRegister,
     writeVRegister,
@@ -14,10 +15,13 @@ module VM.Registers
 where
 
 import BaseTypes
+import Control.Monad (forM_)
 import Control.Monad.Primitive (PrimState)
 import qualified Control.Monad.State as MTL
+import qualified Data.Finite as Finite
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
 import Data.Word (Word8)
+import qualified ShowHelpers
 
 type VRegistersData = SizedMVector.MVector NumRegisters (PrimState IO) Word8
 
@@ -27,6 +31,18 @@ newtype Action a = Action (MTL.StateT Registers IO a) deriving (Functor, Applica
 
 runAction :: Action a -> Registers -> IO (a, Registers)
 runAction (Action action) registers = MTL.runStateT action registers
+
+dumpState :: Registers -> IO ()
+dumpState registers = do
+  putStrLn "Registers:"
+  putStrLn "  VRegisters:"
+  putStrLn "    0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0a 0x0b 0x0c 0x0d 0x0e 0x0f"
+  putStr "   "
+  forM_ Finite.finites $ \addr -> do
+    addrValue <- SizedMVector.read (vRegsData registers) addr
+    putStr $ " " <> ShowHelpers.showWord8 addrValue
+  putChar '\n'
+  putStrLn $ "  AddressRegister: " <> ShowHelpers.showMemoryAddress (addrReg registers)
 
 newRegisters :: IO Registers
 newRegisters = do

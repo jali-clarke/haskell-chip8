@@ -7,6 +7,7 @@ module VM.ScreenBuffer
   ( ScreenBuffer,
     Action,
     runAction,
+    dumpState,
     newScreenBuffer,
     setPixelOn,
     clearBuffer,
@@ -15,6 +16,7 @@ module VM.ScreenBuffer
 where
 
 import BaseTypes
+import Control.Monad (forM_)
 import Control.Monad.Primitive (PrimState)
 import qualified Control.Monad.Reader as MTL
 import Data.Finite (Finite)
@@ -31,6 +33,13 @@ newtype Action a = Action (MTL.ReaderT ScreenBuffer IO a) deriving (Functor, App
 
 runAction :: Action a -> ScreenBuffer -> IO a
 runAction (Action action) buffer = MTL.runReaderT action buffer
+
+dumpState :: ScreenBuffer -> IO ()
+dumpState (ScreenBuffer bufferData) = do
+  putStrLn "Screen buffer ('.' is 0, '#' is 1):"
+  dataAsList <- traverse (SizedMVector.read bufferData) Finite.finites
+  forM_ (rows dataAsList) $ \row ->
+    putStrLn $ "  " <> fmap (\b -> if b then '#' else '.') row
 
 newScreenBuffer :: IO ScreenBuffer
 newScreenBuffer = fmap ScreenBuffer $ SizedMVector.replicate False
@@ -67,3 +76,12 @@ withBufferData callback =
 
 width :: Finite (ScreenWidth + 1)
 width = 64
+
+rows :: [a] -> [[a]]
+rows = chunk $ fromIntegral (Finite.getFinite width)
+
+chunk :: Int -> [a] -> [[a]]
+chunk rowSize allElems =
+  case allElems of
+    [] -> []
+    _ -> let (row, rest) = splitAt rowSize allElems in row : chunk rowSize rest

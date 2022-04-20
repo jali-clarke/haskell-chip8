@@ -8,7 +8,7 @@ module VM.ScreenBuffer
     Action,
     runAction,
     newScreenBuffer,
-    setPixel,
+    setPixelOn,
     clearBuffer,
     frozenBufferData,
   )
@@ -35,14 +35,12 @@ runAction (Action action) buffer = MTL.runReaderT action buffer
 newScreenBuffer :: IO ScreenBuffer
 newScreenBuffer = fmap ScreenBuffer $ SizedMVector.replicate False
 
-setPixel :: ScreenX -> ScreenY -> Bool -> Action Bool
-setPixel screenX screenY pixel = do
-  currentPixel <- getPixel screenX screenY
-  -- (/=) is xor
-  let newPixel = currentPixel /= pixel
-  setPixelRaw (toBufferAddress screenX screenY) newPixel
+setPixelOn :: ScreenX -> ScreenY -> Action Bool
+setPixelOn screenX screenY = do
+  prevPixelValue <- getPixel screenX screenY
+  setPixelRaw (toBufferAddress screenX screenY) (not prevPixelValue)
   -- if the pixel was flipped from on to off, we have a collision
-  pure $ currentPixel && not newPixel
+  pure prevPixelValue
 
 clearBuffer :: Action ()
 clearBuffer = withBufferData $ \bufferData -> SizedMVector.set bufferData False

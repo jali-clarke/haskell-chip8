@@ -8,7 +8,6 @@ where
 import BaseTypes
 import Data.Bits (unsafeShiftL, unsafeShiftR, (.&.))
 import Data.Finite (Finite)
-import qualified Data.Finite as Finite
 import Data.Word (Word8)
 import OpCode.Type
 
@@ -70,34 +69,34 @@ decode opCodeBin =
     _ -> Nothing
 
 decodeNNNOpCode :: (Finite 4096 -> a) -> OpCodeBin -> a
-decodeNNNOpCode toDecodedType opCodeBin = toDecodedType . Finite.finite . fromIntegral $ opCodeBin .&. 0x0FFF
+decodeNNNOpCode toDecodedType opCodeBin = toDecodedType . fromIntegral $ opCodeBin .&. 0x0FFF
 
 decodeXNNOpCode :: (Finite 16 -> Word8 -> a) -> OpCodeBin -> a
 decodeXNNOpCode toDecodedType opCodeBin =
-  let nybble = getNybble (Finite.finite 8) opCodeBin
+  let nybble = getNybble 8 opCodeBin
       byte = fromIntegral $ opCodeBin .&. 0x00FF
    in toDecodedType nybble byte
 
 decodeXYKOpCode :: (Finite 16 -> Finite 16 -> a) -> OpCodeBin -> a
 decodeXYKOpCode toDecodedType opCodeBin =
-  let nybbleX = getNybble (Finite.finite 8) opCodeBin
-      nybbleY = getNybble (Finite.finite 4) opCodeBin
+  let nybbleX = getNybble 8 opCodeBin
+      nybbleY = getNybble 4 opCodeBin
    in toDecodedType nybbleX nybbleY
 
 decodeXYNOpCode :: (Finite 16 -> Finite 16 -> Finite 16 -> a) -> OpCodeBin -> a
 decodeXYNOpCode toDecodedType opCodeBin =
-  let nybbleX = getNybble (Finite.finite 8) opCodeBin
-      nybbleY = getNybble (Finite.finite 4) opCodeBin
-      spriteHeight = getNybble (Finite.finite 0) opCodeBin
+  let nybbleX = getNybble 8 opCodeBin
+      nybbleY = getNybble 4 opCodeBin
+      spriteHeight = getNybble 0 opCodeBin
    in toDecodedType nybbleX nybbleY spriteHeight
 
 decodeXKKOpCode :: (Finite 16 -> a) -> OpCodeBin -> a
 decodeXKKOpCode toDecodedType opCodeBin =
-  let nybble = getNybble (Finite.finite 8) opCodeBin
+  let nybble = getNybble 8 opCodeBin
    in toDecodedType nybble
 
 getNybble :: Finite 16 -> OpCodeBin -> Finite 16
 getNybble offset opCodeBin =
-  let shiftAmount = fromIntegral (Finite.getFinite offset)
+  let shiftAmount = fromIntegral offset
       mask = unsafeShiftL 0x000F shiftAmount
-   in Finite.finite . fromIntegral $ unsafeShiftR (opCodeBin .&. mask) shiftAmount
+   in fromIntegral $ unsafeShiftR (opCodeBin .&. mask) shiftAmount

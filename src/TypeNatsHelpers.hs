@@ -42,7 +42,7 @@ subOne n =
     Right nMinusOne -> Just nMinusOne
 
 one :: Finite 2
-one = Finite.finite 1
+one = 1
 
 two :: Finite 3
-two = Finite.finite 2
+two = 2

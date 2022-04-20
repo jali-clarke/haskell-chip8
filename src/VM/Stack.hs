@@ -19,7 +19,6 @@ import BaseTypes
 import qualified Control.Monad.Except as MTL
 import Control.Monad.Primitive (PrimState)
 import qualified Control.Monad.State as MTL
-import qualified Data.Finite as Finite
 import qualified Data.Vector.Mutable as BoxedMVector
 import qualified Data.Vector.Mutable.Sized as SizedBoxedMVector
 import qualified GHC.TypeNats as TypeNats
@@ -38,7 +37,7 @@ withNewStack :: Int -> (forall stackSize. TypeNats.KnownNat stackSize => Stack s
 withNewStack maxStackSize callback = do
   unsizedStackData <- BoxedMVector.unsafeNew maxStackSize
   SizedBoxedMVector.withSized unsizedStackData $ \thisStackData ->
-    callback (Stack {stackData = thisStackData, nextStackAddr = Finite.finite 0})
+    callback (Stack {stackData = thisStackData, nextStackAddr = 0})
 
 popStack :: Action stackSize MemoryAddress
 popStack =

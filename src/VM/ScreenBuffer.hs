@@ -66,4 +66,4 @@ withBufferData callback =
     MTL.liftIO $ callback bufferData
 
 width :: Finite (ScreenWidth + 1)
-width = Finite.finite 64
+width = 64

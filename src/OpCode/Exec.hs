@@ -223,7 +223,7 @@ toFlagValue :: Bool -> Word8
 toFlagValue bool = if bool then 0x01 else 0x00
 
 word8ToFinite :: TypeNats.KnownNat n => Word8 -> Finite n
-word8ToFinite = Finite.finite . fromIntegral
+word8ToFinite = fromIntegral
 
 keyboardKeyToWord8 :: KeyboardKey -> Word8
 keyboardKeyToWord8 = fromIntegral . Finite.getFinite
@@ -232,7 +232,7 @@ word8ToKeyboardKey :: Word8 -> Maybe KeyboardKey
 word8ToKeyboardKey = Finite.packFinite . fromIntegral
 
 v0Register :: VRegisterAddress
-v0Register = Finite.finite 0
+v0Register = 0
 
 flagRegister :: VRegisterAddress
-flagRegister = Finite.finite 15
+flagRegister = 15

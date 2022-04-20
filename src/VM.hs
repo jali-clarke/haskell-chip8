@@ -88,7 +88,7 @@ withNewVMState theseMachineCallbacks maxStackSize programRom callback =
                         screenBuffer = newScreenBuffer,
                         stack = newStack,
                         timers = Timers.newTimers,
-                        pc = Finite.finite 0
+                        pc = 0
                       }
               callback (Right newState)
 
@@ -168,22 +168,22 @@ getKeyboardKey :: Action stackSize KeyboardKey
 getKeyboardKey = do
   keyChar <- withMachineCallbacks MachineCallbacks.blockingGetKeyboardKey
   case keyChar of
-    '0' -> pure $ Finite.finite 0
-    '1' -> pure $ Finite.finite 1
-    '2' -> pure $ Finite.finite 2
-    '3' -> pure $ Finite.finite 3
-    '4' -> pure $ Finite.finite 4
-    '5' -> pure $ Finite.finite 5
-    '6' -> pure $ Finite.finite 6
-    '7' -> pure $ Finite.finite 7
-    '8' -> pure $ Finite.finite 8
-    '9' -> pure $ Finite.finite 9
-    'a' -> pure $ Finite.finite 10
-    'b' -> pure $ Finite.finite 11
-    'c' -> pure $ Finite.finite 12
-    'd' -> pure $ Finite.finite 13
-    'e' -> pure $ Finite.finite 14
-    'f' -> pure $ Finite.finite 15
+    '0' -> pure 0
+    '1' -> pure 1
+    '2' -> pure 2
+    '3' -> pure 3
+    '4' -> pure 4
+    '5' -> pure 5
+    '6' -> pure 6
+    '7' -> pure 7
+    '8' -> pure 8
+    '9' -> pure 9
+    'a' -> pure 10
+    'b' -> pure 11
+    'c' -> pure 12
+    'd' -> pure 13
+    'e' -> pure 14
+    'f' -> pure 15
     _ -> getKeyboardKey
 
 isKeyPressed :: KeyboardKey -> Action stackSize Bool

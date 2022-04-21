@@ -20,4 +20,4 @@ maxStackSizeParser =
     metavar "MAX_STACK_SIZE" <> long "max-stack-size" <> short 's' <> showDefault <> value 50 <> help "max stack size / recursion depth"
 
 verboseModeParser :: Parser Bool
-verboseModeParser = switch $ long "verbose" <> short 'v' <> help "enable debug logging if provided"
+verboseModeParser = switch $ long "verbose" <> short 'v' <> help "enable debug logging if flag is set"

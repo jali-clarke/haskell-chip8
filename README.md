@@ -17,7 +17,7 @@ Available options:
   ROM_FILE_PATH            path to rom file
   -s,--max-stack-size MAX_STACK_SIZE
                            max stack size / recursion depth (default: 50)
-  -v,--verbose             enable debug logging if provided
+  -v,--verbose             enable debug logging if flag is set
   -h,--help                Show this help text
 ```
 

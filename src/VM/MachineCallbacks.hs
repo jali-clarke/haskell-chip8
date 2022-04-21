@@ -1,5 +1,6 @@
 module VM.MachineCallbacks
   ( MachineCallbacks (..),
+    stubCallbacks,
   )
 where
 
@@ -13,3 +14,12 @@ data MachineCallbacks = MachineCallbacks
     randomByte :: IO Word8,
     renderFrozenScreenBufferData :: SizedVector.Vector ScreenBufferSize Bool -> IO ()
   }
+
+stubCallbacks :: MachineCallbacks
+stubCallbacks =
+  MachineCallbacks
+    { blockingGetKeyboardKey = pure 'f',
+      isKeyPressed = \_ -> pure False,
+      randomByte = pure 0,
+      renderFrozenScreenBufferData = \_ -> pure ()
+    }

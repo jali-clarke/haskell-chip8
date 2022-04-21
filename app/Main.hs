@@ -16,7 +16,7 @@ import qualified System.Console.ANSI as ANSI
 import qualified VM
 import qualified VM.Config
 import qualified VM.Config as VM (Config (Config))
-import VM.MachineCallbacks (MachineCallbacks (..))
+import qualified VM.MachineCallbacks as MachineCallbacks
 
 main :: IO ()
 main =
@@ -55,12 +55,7 @@ toVMConfig options = do
   pure $
     VM.Config
       { VM.Config.machineCallbacks =
-          MachineCallbacks
-            { blockingGetKeyboardKey = pure 'f',
-              isKeyPressed = \_ -> pure False,
-              randomByte = pure 0,
-              renderFrozenScreenBufferData = renderToTerminal
-            },
+          MachineCallbacks.stubCallbacks {MachineCallbacks.renderFrozenScreenBufferData = renderToTerminal},
         VM.Config.maxStackSize = CLI.maxStackSize options,
         VM.Config.programRom = romBytes,
         VM.Config.shouldLog = CLI.verboseMode options

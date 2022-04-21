@@ -9,6 +9,7 @@ module ShowHelpers
 where
 
 import BaseTypes
+import qualified Data.Finite as Finite
 import Data.Word (Word8)
 import qualified Numeric
 
@@ -19,10 +20,10 @@ showOpCodeBin :: OpCodeBin -> String
 showOpCodeBin = showHexValue 4
 
 showRegisterAddress :: VRegisterAddress -> String
-showRegisterAddress = showHexValue 1
+showRegisterAddress = showHexValue 1 . Finite.getFinite
 
 showSpriteHeight :: SpriteHeight -> String
-showSpriteHeight = showHexValue 1
+showSpriteHeight = showHexValue 1 . Finite.getFinite
 
 showWord8 :: Word8 -> String
 showWord8 = showHexValue 2

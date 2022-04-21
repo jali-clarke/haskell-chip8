@@ -1,16 +1,15 @@
 import qualified CLI
+import Callbacks.Terminal (callbacks)
 import Control.Monad (forever)
 import qualified Data.ByteString as ByteString
 import qualified GHC.TypeNats as TypeNats
 import qualified OpCode
 import Options.Applicative ((<**>))
 import qualified Options.Applicative as Options
-import Renderers.Terminal (renderToTerminal)
 import qualified ShowHelpers
 import qualified VM
 import qualified VM.Config
 import qualified VM.Config as VM (Config (Config))
-import qualified VM.MachineCallbacks as MachineCallbacks
 
 main :: IO ()
 main =
@@ -48,10 +47,7 @@ toVMConfig options = do
   romBytes <- ByteString.readFile (CLI.romFilePath options)
   pure $
     VM.Config
-      { VM.Config.machineCallbacks =
-          MachineCallbacks.stubCallbacks
-            { MachineCallbacks.renderFrozenScreenBufferData = renderToTerminal
-            },
+      { VM.Config.machineCallbacks = callbacks,
         VM.Config.maxStackSize = CLI.maxStackSize options,
         VM.Config.programRom = romBytes,
         VM.Config.shouldLog = CLI.verboseMode options

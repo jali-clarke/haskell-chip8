@@ -40,7 +40,7 @@ dumpState :: TypeNats.KnownNat stackSize => Stack stackSize -> IO ()
 dumpState stack = do
   putStrLn "Stack (grows downwards):"
   case subOne (nextStackAddr stack) of
-    Nothing -> pure ()
+    Nothing -> putStrLn "  <empty>"
     Just topOfStack ->
       forM_ [0 .. topOfStack] $ \stackAddr -> do
         stackAddrData <- SizedBoxedMVector.read (stackData stack) stackAddr

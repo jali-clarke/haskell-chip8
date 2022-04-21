@@ -170,11 +170,29 @@ exec opCode =
       VM.incrementPC
     GetLetterSpriteAddress _ -> unimplemented opCode
     StoreBinaryCodedDecimalRep _ -> unimplemented opCode
-    DumpRegisters _ -> unimplemented opCode
+    DumpRegisters endRegisterAddress -> do
+      (registerValues, baseMemoryAddress) <-
+        VM.withRegistersAction $
+          (,) <$> traverse Registers.readVRegister [0 .. endRegisterAddress] <*> Registers.readAddrRegister
+      dumpRegisterValuesToLocation baseMemoryAddress registerValues
+      VM.incrementPC
     LoadRegisters _ -> unimplemented opCode
 
 unimplemented :: OpCode -> VM.Action stackSize ()
 unimplemented opCode = VM.throwVMError $ "unimplemented opCode: " <> show opCode
+
+dumpRegisterValuesToLocation :: MemoryAddress -> [Word8] -> VM.Action stackSize ()
+dumpRegisterValuesToLocation baseMemoryAddress values =
+  case values of
+    [] -> pure ()
+    value : rest -> do
+      VM.withMemoryAction $ Memory.writeMemory baseMemoryAddress value
+      case addOne baseMemoryAddress of
+        Nothing ->
+          if null rest
+            then pure ()
+            else VM.throwVMError "attempted to write memory out of bounds when dumping registers"
+        Just nextMemoryAddress -> dumpRegisterValuesToLocation nextMemoryAddress rest
 
 drawSprite :: ScreenX -> ScreenY -> MemoryAddress -> SpriteHeight -> Bool -> VM.Action stackSize Bool
 drawSprite basePosX basePosY baseSpriteAddress spriteHeight anyFlippedPixels =

@@ -26,10 +26,12 @@ module VM
     renderFrozenScreenBufferData,
     throwVMError,
     dumpState,
+    debugLog,
   )
 where
 
 import BaseTypes
+import Control.Monad (when)
 import qualified Control.Monad.Except as MTL
 import qualified Control.Monad.State.Strict as MTL
 import Data.Bits (unsafeShiftL, (.|.))
@@ -64,7 +66,8 @@ data VMState stackSize = VMState
     stack :: Stack stackSize,
     timers :: Timers,
     pc :: MemoryAddress,
-    machineCallbacks :: MachineCallbacks
+    machineCallbacks :: MachineCallbacks,
+    shouldLog :: Bool
   }
 
 newtype Action stackSize a = Action (MTL.ExceptT String (MTL.StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
@@ -91,7 +94,8 @@ withNewVMState config callback =
                         screenBuffer = newScreenBuffer,
                         stack = newStack,
                         timers = Timers.newTimers,
-                        pc = 0
+                        pc = 0,
+                        shouldLog = Config.shouldLog config
                       }
               callback (Right newState)
 
@@ -242,3 +246,10 @@ withMachineCallbacks callbackCallback =
   Action $ do
     theseMachineCallbacks <- MTL.gets machineCallbacks
     MTL.liftIO $ callbackCallback theseMachineCallbacks
+
+debugLog :: String -> Action stackSize ()
+debugLog message =
+  Action $ do
+    shouldLogMessage <- MTL.gets shouldLog
+    when shouldLogMessage $
+      MTL.liftIO $ putStrLn message

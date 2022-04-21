@@ -41,7 +41,7 @@ execCLIOpts options =
             Right vmState -> do
               (maybeResult, endState) <- VM.runAction vmLoop vmState
               case maybeResult of
-                Left err -> putStrLn err
+                Left err -> putStrLn $ err <> "\n"
                 Right () -> pure ()
               VM.dumpState endState
 

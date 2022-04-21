@@ -32,10 +32,10 @@
         packages = rec {
           haskell-chip8 = pkgs.haskellPackages.callCabal2nix "haskell-chip8" ./. { };
           ibm-test = pkgs.writeShellScriptBin "ibm-test" ''
-            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-roms}/roms/IBM Logo.ch8"
+            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-roms}/roms/IBM Logo.ch8" "$@"
           '';
           pong-test = pkgs.writeShellScriptBin "pong-test" ''
-            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-roms}/roms/Pong (alt).ch8"
+            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-roms}/roms/Pong (alt).ch8" "$@"
           '';
         };
 

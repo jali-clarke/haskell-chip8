@@ -1,18 +1,12 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-
-import BaseTypes
 import qualified CLI
-import Control.Monad (forM_, forever)
+import Control.Monad (forever)
 import qualified Data.ByteString as ByteString
-import qualified Data.Vector.Unboxed.Sized as SizedVector
 import qualified GHC.TypeNats as TypeNats
 import qualified OpCode
 import Options.Applicative ((<**>))
 import qualified Options.Applicative as Options
+import Renderers.Terminal (renderToTerminal)
 import qualified ShowHelpers
-import qualified System.Console.ANSI as ANSI
 import qualified VM
 import qualified VM.Config
 import qualified VM.Config as VM (Config (Config))
@@ -55,16 +49,10 @@ toVMConfig options = do
   pure $
     VM.Config
       { VM.Config.machineCallbacks =
-          MachineCallbacks.stubCallbacks {MachineCallbacks.renderFrozenScreenBufferData = renderToTerminal},
+          MachineCallbacks.stubCallbacks
+            { MachineCallbacks.renderFrozenScreenBufferData = renderToTerminal
+            },
         VM.Config.maxStackSize = CLI.maxStackSize options,
         VM.Config.programRom = romBytes,
         VM.Config.shouldLog = CLI.verboseMode options
       }
-
-renderToTerminal :: SizedVector.Vector ScreenBufferSize Bool -> IO ()
-renderToTerminal screenData = do
-  ANSI.clearScreen
-  ANSI.setCursorPosition 0 0
-  let rows = ShowHelpers.rows 64 (SizedVector.toList screenData)
-  forM_ rows $ \row ->
-    putStrLn $ fmap (\b -> if b then '#' else ' ') row <> "\n"

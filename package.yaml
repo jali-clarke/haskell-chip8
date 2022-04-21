@@ -16,8 +16,10 @@ executables:
     - ansi-terminal
     - base
     - bytestring
+    - finite-typelits
     - haskell-chip8
     - optparse-applicative
+    - sdl2
     - vector-sized
     ghc-options:
     - -O2

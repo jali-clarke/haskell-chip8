@@ -4,9 +4,8 @@
 
 import BaseTypes
 import qualified CLI
-import Control.Monad (forever)
+import Control.Monad (forM_, forever)
 import qualified Data.ByteString as ByteString
-import Data.Foldable (traverse_)
 import qualified Data.Vector.Unboxed.Sized as SizedVector
 import qualified GHC.TypeNats as TypeNats
 import qualified OpCode
@@ -72,7 +71,5 @@ renderToTerminal screenData = do
   ANSI.clearScreen
   ANSI.setCursorPosition 0 0
   let rows = ShowHelpers.rows 64 (SizedVector.toList screenData)
-  traverse_ printRow rows
-
-printRow :: [Bool] -> IO ()
-printRow rowData = putStrLn $ fmap (\b -> if b then '#' else ' ') rowData <> "\n"
+  forM_ rows $ \row ->
+    putStrLn $ fmap (\b -> if b then '#' else ' ') row <> "\n"

@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -22,7 +23,7 @@ import qualified Data.Finite as Finite
 import Data.Foldable (traverse_)
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
 import Data.Word (Word8)
-import GHC.TypeNats (type (<=))
+import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
 import qualified ShowHelpers
 import SizedByteString (SizedByteString)
@@ -47,7 +48,7 @@ dumpState (Memory memoryData) = do
   forM_ rowsWithIndex $ \(rowIndex, row) ->
     putStrLn $ "  " <> ShowHelpers.showWord8 rowIndex <> "_ |" <> dumpStateRowString row
 
-memoryWithLoadedProgram :: (TypeNats.KnownNat programSize, programSize <= MemorySize) => SizedByteString programSize -> IO Memory
+memoryWithLoadedProgram :: (TypeNats.KnownNat programSize, (programSize + 512) <= MemorySize) => SizedByteString programSize -> IO Memory
 memoryWithLoadedProgram programRom = do
   let programLength = SizedByteString.length' programRom
       addresses = Finite.finitesProxy programLength
@@ -67,10 +68,10 @@ writeMemory memoryAddress byte =
     Memory memoryData <- MTL.ask
     MTL.liftIO $ SizedMVector.write memoryData memoryAddress byte
 
-writeBinFromProgram :: (programSize <= MemorySize) => SizedByteString programSize -> Memory -> Finite programSize -> IO ()
+writeBinFromProgram :: ((programSize + 512) <= MemorySize) => SizedByteString programSize -> Memory -> Finite programSize -> IO ()
 writeBinFromProgram programRom (Memory memoryData) programAddress =
   let programByte = SizedByteString.byteAt programRom programAddress
-      memoryAddress = Finite.finite (Finite.getFinite programAddress)
+      memoryAddress = Finite.finite (Finite.getFinite programAddress + 512)
    in SizedMVector.write memoryData memoryAddress programByte
 
 dumpStateRowString :: [Word8] -> String

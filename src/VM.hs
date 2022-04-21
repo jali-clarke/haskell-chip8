@@ -40,6 +40,8 @@ import Data.Proxy (Proxy (..))
 import Data.Type.Equality ((:~:) (..))
 import Data.Word (Word8)
 import qualified GHC.TypeLits.Compare as TypeNats
+import GHC.TypeLits.Witnesses (SNat (..), (%+))
+import GHC.TypeNats (type (+))
 import qualified GHC.TypeNats as TypeNats
 import qualified ShowHelpers
 import qualified SizedByteString
@@ -76,28 +78,31 @@ withNewVMState :: Config -> (forall stackSize. TypeNats.KnownNat stackSize => Ei
 withNewVMState config callback =
   Stack.withNewStack (Config.maxStackSize config) $ \(newStack :: Stack thisStackSize) ->
     SizedByteString.withSized (Config.programRom config) $ \sizedProgramRom -> do
-      let byteStringSize = SizedByteString.length' sizedProgramRom
-      case TypeNats.sameNat byteStringSize (Proxy :: Proxy 0) of
-        Just Refl -> callback (Left "program is empty" :: Either String (VMState thisStackSize))
-        Nothing ->
-          case TypeNats.isLE byteStringSize (Proxy :: Proxy MemorySize) of
-            Nothing -> callback (Left "program rom is too large" :: Either String (VMState thisStackSize))
-            Just Refl -> do
-              loadedMemory <- Memory.memoryWithLoadedProgram sizedProgramRom
-              newRegisters <- Registers.newRegisters
-              newScreenBuffer <- ScreenBuffer.newScreenBuffer
-              let newState =
-                    VMState
-                      { machineCallbacks = Config.machineCallbacks config,
-                        memory = loadedMemory,
-                        registers = newRegisters,
-                        screenBuffer = newScreenBuffer,
-                        stack = newStack,
-                        timers = Timers.newTimers,
-                        pc = 0,
-                        shouldLog = Config.shouldLog config
-                      }
-              callback (Right newState)
+      case SizedByteString.length' sizedProgramRom of
+        (byteStringSize :: Proxy programSize) ->
+          case TypeNats.sameNat byteStringSize (Proxy :: Proxy 0) of
+            Just Refl -> callback (Left "program is empty" :: Either String (VMState thisStackSize))
+            Nothing ->
+              case (SNat :: SNat programSize) %+ (SNat :: SNat 512) of
+                SNat ->
+                  case TypeNats.isLE (Proxy :: Proxy (programSize + 512)) (Proxy :: Proxy MemorySize) of
+                    Nothing -> callback (Left "program rom is too large" :: Either String (VMState thisStackSize))
+                    Just Refl -> do
+                      loadedMemory <- Memory.memoryWithLoadedProgram sizedProgramRom
+                      newRegisters <- Registers.newRegisters
+                      newScreenBuffer <- ScreenBuffer.newScreenBuffer
+                      let newState =
+                            VMState
+                              { machineCallbacks = Config.machineCallbacks config,
+                                memory = loadedMemory,
+                                registers = newRegisters,
+                                screenBuffer = newScreenBuffer,
+                                stack = newStack,
+                                timers = Timers.newTimers,
+                                pc = 0x200,
+                                shouldLog = Config.shouldLog config
+                              }
+                      callback (Right newState)
 
 runAction :: Action stackSize a -> VMState stackSize -> IO (Either String a, VMState stackSize)
 runAction (Action action) vmState = MTL.runStateT (MTL.runExceptT action) vmState

@@ -35,6 +35,7 @@ runAction (Action action) registers = MTL.runStateT action registers
 dumpState :: Registers -> IO ()
 dumpState registers = do
   putStrLn "Registers:"
+  putStrLn $ "  AddressRegister: " <> ShowHelpers.showMemoryAddress (addrReg registers)
   putStrLn "  VRegisters:"
   putStrLn "    0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0a 0x0b 0x0c 0x0d 0x0e 0x0f"
   putStrLn "    -------------------------------------------------------------------------------"
@@ -42,8 +43,6 @@ dumpState registers = do
   forM_ Finite.finites $ \addr -> do
     addrValue <- SizedMVector.read (vRegsData registers) addr
     putStr $ " " <> ShowHelpers.showWord8 addrValue
-  putChar '\n'
-  putStrLn $ "  AddressRegister: " <> ShowHelpers.showMemoryAddress (addrReg registers)
 
 newRegisters :: IO Registers
 newRegisters = do

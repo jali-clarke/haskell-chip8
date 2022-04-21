@@ -1,10 +1,10 @@
 module VM.Config where
 
 import Data.ByteString (ByteString)
-import VM.MachineCallbacks (MachineCallbacks)
+import VM.Platform (Platform)
 
 data Config = Config
-  { machineCallbacks :: MachineCallbacks,
+  { platform :: Platform,
     maxStackSize :: Int,
     programRom :: ByteString,
     shouldLog :: Bool

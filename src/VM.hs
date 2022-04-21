@@ -48,10 +48,10 @@ import qualified SizedByteString
 import TypeNatsHelpers
 import VM.Config (Config)
 import qualified VM.Config as Config
-import VM.MachineCallbacks (MachineCallbacks)
-import qualified VM.MachineCallbacks as MachineCallbacks
 import VM.Memory (Memory)
 import qualified VM.Memory as Memory
+import VM.Platform (Platform)
+import qualified VM.Platform as Platform
 import VM.Registers (Registers)
 import qualified VM.Registers as Registers
 import VM.ScreenBuffer (ScreenBuffer)
@@ -68,7 +68,7 @@ data VMState stackSize = VMState
     stack :: Stack stackSize,
     timers :: Timers,
     pc :: MemoryAddress,
-    machineCallbacks :: MachineCallbacks,
+    platform :: Platform,
     shouldLog :: Bool
   }
 
@@ -93,7 +93,7 @@ withNewVMState config callback =
                       newScreenBuffer <- ScreenBuffer.newScreenBuffer
                       let newState =
                             VMState
-                              { machineCallbacks = Config.machineCallbacks config,
+                              { platform = Config.platform config,
                                 memory = loadedMemory,
                                 registers = newRegisters,
                                 screenBuffer = newScreenBuffer,
@@ -174,11 +174,11 @@ setPC :: MemoryAddress -> Action stackSize ()
 setPC nextPC = Action $ MTL.modify (\vmState -> vmState {pc = nextPC})
 
 randomByte :: Action stackSize Word8
-randomByte = withMachineCallbacks MachineCallbacks.randomByte
+randomByte = withPlatform Platform.randomByte
 
 getKeyboardKey :: Action stackSize KeyboardKey
 getKeyboardKey = do
-  keyChar <- withMachineCallbacks MachineCallbacks.blockingGetKeyboardKey
+  keyChar <- withPlatform Platform.blockingGetKeyboardKey
   case keyChar of
     '0' -> pure 0
     '1' -> pure 1
@@ -200,8 +200,8 @@ getKeyboardKey = do
 
 isKeyPressed :: KeyboardKey -> Action stackSize Bool
 isKeyPressed keyboardKey =
-  withMachineCallbacks $ \theseMachineCallbacks ->
-    let checkKeyPressed = MachineCallbacks.isKeyPressed theseMachineCallbacks
+  withPlatform $ \thisPlatform ->
+    let checkKeyPressed = Platform.isKeyPressed thisPlatform
      in case Finite.getFinite keyboardKey of
           0 -> checkKeyPressed '0'
           1 -> checkKeyPressed '1'
@@ -225,8 +225,8 @@ isKeyPressed keyboardKey =
 renderFrozenScreenBufferData :: Action stackSize ()
 renderFrozenScreenBufferData = do
   frozenBufferData <- withScreenBufferAction ScreenBuffer.frozenBufferData
-  withMachineCallbacks $ \theseMachineCallbacks ->
-    MachineCallbacks.renderFrozenScreenBufferData theseMachineCallbacks frozenBufferData
+  withPlatform $ \thisPlatform ->
+    Platform.renderFrozenScreenBufferData thisPlatform frozenBufferData
 
 throwVMError :: String -> Action stackSize a
 throwVMError errMsg = Action $ MTL.throwError errMsg
@@ -246,11 +246,11 @@ dumpState vmState = do
   Memory.dumpState (memory vmState)
   putChar '\n'
 
-withMachineCallbacks :: (MachineCallbacks -> IO a) -> Action stackSize a
-withMachineCallbacks callbackCallback =
+withPlatform :: (Platform -> IO a) -> Action stackSize a
+withPlatform platformCallback =
   Action $ do
-    theseMachineCallbacks <- MTL.gets machineCallbacks
-    MTL.liftIO $ callbackCallback theseMachineCallbacks
+    thisPlatform <- MTL.gets platform
+    MTL.liftIO $ platformCallback thisPlatform
 
 debugLog :: String -> Action stackSize ()
 debugLog message =

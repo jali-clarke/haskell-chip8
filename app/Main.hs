@@ -1,16 +1,16 @@
 import qualified CLI
-import Callbacks.SDL (withCallbacks)
 import Control.Monad (forever)
 import qualified Data.ByteString as ByteString
 import qualified GHC.TypeNats as TypeNats
 import qualified OpCode
 import Options.Applicative ((<**>))
 import qualified Options.Applicative as Options
+import Platform.SDL (withPlatform)
 import qualified ShowHelpers
 import qualified VM
 import qualified VM.Config
 import qualified VM.Config as VM (Config (Config))
-import VM.MachineCallbacks (MachineCallbacks)
+import VM.Platform (Platform)
 
 main :: IO ()
 main =
@@ -21,8 +21,8 @@ main =
 
 execCLIOpts :: CLI.Options -> IO ()
 execCLIOpts options =
-  withCallbacks $ \callbacks -> do
-    vmConfig <- toVMConfig options callbacks
+  withPlatform $ \platform -> do
+    vmConfig <- toVMConfig options platform
     VM.withNewVMState vmConfig $ \maybeVmState ->
       case maybeVmState of
         Left err -> putStrLn err
@@ -44,12 +44,12 @@ vmLoop =
         VM.debugLog $ "executing parsed opcode: " <> show opCode
         OpCode.exec opCode
 
-toVMConfig :: CLI.Options -> MachineCallbacks -> IO VM.Config
-toVMConfig options callbacks = do
+toVMConfig :: CLI.Options -> Platform -> IO VM.Config
+toVMConfig options platform = do
   romBytes <- ByteString.readFile (CLI.romFilePath options)
   pure $
     VM.Config
-      { VM.Config.machineCallbacks = callbacks,
+      { VM.Config.platform = platform,
         VM.Config.maxStackSize = CLI.maxStackSize options,
         VM.Config.programRom = romBytes,
         VM.Config.shouldLog = CLI.verboseMode options

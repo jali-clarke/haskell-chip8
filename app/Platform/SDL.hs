@@ -3,9 +3,9 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE NoStarIsType #-}
 
-module Callbacks.SDL
+module Platform.SDL
   ( WindowCtx,
-    withCallbacks,
+    withPlatform,
   )
 where
 
@@ -19,21 +19,21 @@ import Foreign.C.Types (CInt)
 import GHC.TypeNats (KnownNat, type (*), type (+))
 import qualified SDL
 import SDL.Vect (Point (..), V2 (..), V4 (..))
-import VM.MachineCallbacks (MachineCallbacks)
-import qualified VM.MachineCallbacks as MachineCallbacks
+import VM.Platform (Platform)
+import qualified VM.Platform as Platform
 
 newtype WindowCtx = WindowCtx
   { windowRenderer :: SDL.Renderer
   }
 
-withCallbacks :: (MachineCallbacks -> IO a) -> IO a
-withCallbacks machineCallbacksCallback =
+withPlatform :: (Platform -> IO a) -> IO a
+withPlatform platformCallback =
   withWindowCtx $ \windowCtx ->
-    let machineCallbacks =
-          MachineCallbacks.stubCallbacks
-            { MachineCallbacks.renderFrozenScreenBufferData = renderWithWindowCtx windowCtx
+    let platform =
+          Platform.stubPlatform
+            { Platform.renderFrozenScreenBufferData = renderWithWindowCtx windowCtx
             }
-     in machineCallbacksCallback machineCallbacks
+     in platformCallback platform
 
 withWindowCtx :: (WindowCtx -> IO a) -> IO a
 withWindowCtx callback =

@@ -1,5 +1,5 @@
-module Callbacks.Terminal
-  ( callbacks,
+module Platform.Terminal
+  ( platform,
   )
 where
 
@@ -8,13 +8,13 @@ import Control.Monad (forM_)
 import qualified Data.Vector.Unboxed.Sized as SizedVector
 import qualified ShowHelpers
 import qualified System.Console.ANSI as ANSI
-import VM.MachineCallbacks (MachineCallbacks)
-import qualified VM.MachineCallbacks as MachineCallbacks
+import VM.Platform (Platform)
+import qualified VM.Platform as Platform
 
-callbacks :: MachineCallbacks
-callbacks =
-  MachineCallbacks.stubCallbacks
-    { MachineCallbacks.renderFrozenScreenBufferData = renderToTerminal
+platform :: Platform
+platform =
+  Platform.stubPlatform
+    { Platform.renderFrozenScreenBufferData = renderToTerminal
     }
 
 renderToTerminal :: SizedVector.Vector ScreenBufferSize Bool -> IO ()

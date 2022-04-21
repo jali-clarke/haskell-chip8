@@ -25,6 +25,7 @@ module VM
     isKeyPressed,
     renderFrozenScreenBufferData,
     throwVMError,
+    dumpState,
   )
 where
 
@@ -39,6 +40,7 @@ import Data.Type.Equality ((:~:) (..))
 import Data.Word (Word8)
 import qualified GHC.TypeLits.Compare as TypeNats
 import qualified GHC.TypeNats as TypeNats
+import qualified ShowHelpers
 import qualified SizedByteString
 import TypeNatsHelpers
 import VM.MachineCallbacks (MachineCallbacks)
@@ -218,6 +220,21 @@ renderFrozenScreenBufferData = do
 
 throwVMError :: String -> Action stackSize a
 throwVMError errMsg = Action $ MTL.throwError errMsg
+
+dumpState :: TypeNats.KnownNat stackSize => VMState stackSize -> IO ()
+dumpState vmState = do
+  Timers.dumpState (timers vmState)
+  putChar '\n'
+  ScreenBuffer.dumpState (screenBuffer vmState)
+  putChar '\n'
+  Stack.dumpState (stack vmState)
+  putChar '\n'
+  Registers.dumpState (registers vmState)
+  putChar '\n'
+  putStrLn $ "Program counter: " <> ShowHelpers.showMemoryAddress (pc vmState)
+  putChar '\n'
+  Memory.dumpState (memory vmState)
+  putChar '\n'
 
 withMachineCallbacks :: (MachineCallbacks -> IO a) -> Action stackSize a
 withMachineCallbacks callbackCallback =

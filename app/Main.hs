@@ -1,5 +1,5 @@
 import qualified CLI
-import Callbacks.Terminal (callbacks)
+import Callbacks.SDL (withCallbacks)
 import Control.Monad (forever)
 import qualified Data.ByteString as ByteString
 import qualified GHC.TypeNats as TypeNats
@@ -10,6 +10,7 @@ import qualified ShowHelpers
 import qualified VM
 import qualified VM.Config
 import qualified VM.Config as VM (Config (Config))
+import VM.MachineCallbacks (MachineCallbacks)
 
 main :: IO ()
 main =
@@ -19,17 +20,18 @@ main =
    in Options.execParser parserWithInfo >>= execCLIOpts
 
 execCLIOpts :: CLI.Options -> IO ()
-execCLIOpts options = do
-  vmConfig <- toVMConfig options
-  VM.withNewVMState vmConfig $ \maybeVmState ->
-    case maybeVmState of
-      Left err -> putStrLn err
-      Right vmState -> do
-        (maybeResult, endState) <- VM.runAction vmLoop vmState
-        case maybeResult of
-          Left err -> putStrLn $ err <> "\n"
-          Right () -> pure ()
-        VM.dumpState endState
+execCLIOpts options =
+  withCallbacks $ \callbacks -> do
+    vmConfig <- toVMConfig options callbacks
+    VM.withNewVMState vmConfig $ \maybeVmState ->
+      case maybeVmState of
+        Left err -> putStrLn err
+        Right vmState -> do
+          (maybeResult, endState) <- VM.runAction vmLoop vmState
+          case maybeResult of
+            Left err -> putStrLn $ err <> "\n"
+            Right () -> pure ()
+          VM.dumpState endState
 
 vmLoop :: TypeNats.KnownNat stackSize => VM.Action stackSize ()
 vmLoop =
@@ -42,8 +44,8 @@ vmLoop =
         VM.debugLog $ "executing parsed opcode: " <> show opCode
         OpCode.exec opCode
 
-toVMConfig :: CLI.Options -> IO VM.Config
-toVMConfig options = do
+toVMConfig :: CLI.Options -> MachineCallbacks -> IO VM.Config
+toVMConfig options callbacks = do
   romBytes <- ByteString.readFile (CLI.romFilePath options)
   pure $
     VM.Config

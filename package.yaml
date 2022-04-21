@@ -20,6 +20,8 @@ executables:
     - haskell-chip8
     - optparse-applicative
     - sdl2
+    - StateVar
+    - vector
     - vector-sized
     ghc-options:
     - -O2

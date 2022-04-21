@@ -15,7 +15,6 @@ module VM.Registers
 where
 
 import BaseTypes
-import Control.Monad (forM_)
 import Control.Monad.Primitive (PrimState)
 import qualified Control.Monad.State as MTL
 import qualified Data.Finite as Finite
@@ -39,10 +38,8 @@ dumpState registers = do
   putStrLn "  VRegisters:"
   putStrLn "    0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0a 0x0b 0x0c 0x0d 0x0e 0x0f"
   putStrLn "    -------------------------------------------------------------------------------"
-  putStr "   "
-  forM_ Finite.finites $ \addr -> do
-    addrValue <- SizedMVector.read (vRegsData registers) addr
-    putStr $ " " <> ShowHelpers.showWord8 addrValue
+  addrValuesList <- traverse (SizedMVector.read (vRegsData registers)) Finite.finites
+  putStrLn $ "   " <> dumpVRegistersAsString addrValuesList
 
 newRegisters :: IO Registers
 newRegisters = do
@@ -69,3 +66,6 @@ withVRegistersData callback =
   Action $ do
     registers <- MTL.get
     MTL.liftIO $ callback (vRegsData registers)
+
+dumpVRegistersAsString :: [Word8] -> String
+dumpVRegistersAsString = concat . fmap (\byte -> " " <> ShowHelpers.showWord8 byte)

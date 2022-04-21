@@ -275,7 +275,7 @@ word8ToFinite :: TypeNats.KnownNat n => Word8 -> Finite n
 word8ToFinite = fromIntegral
 
 keyboardKeyToWord8 :: KeyboardKey -> Word8
-keyboardKeyToWord8 = fromIntegral . Finite.getFinite
+keyboardKeyToWord8 = fromIntegral
 
 word8ToKeyboardKey :: Word8 -> Maybe KeyboardKey
 word8ToKeyboardKey = Finite.packFinite . fromIntegral

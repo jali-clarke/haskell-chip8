@@ -169,12 +169,17 @@ exec opCode =
         Just newAddressRegisterValue -> VM.withRegistersAction $ Registers.writeAddrRegister newAddressRegisterValue
       VM.incrementPC
     GetLetterSpriteAddress _ -> unimplemented opCode
-    StoreBinaryCodedDecimalRep _ -> unimplemented opCode
+    StoreBinaryCodedDecimalRep registerAddress -> do
+      (registerValue, baseMemoryAddress) <-
+        VM.withRegistersAction $
+          (,) <$> Registers.readVRegister registerAddress <*> Registers.readAddrRegister
+      dumpValuesToLocation baseMemoryAddress [registerValue `div` 100, (registerValue `div` 10) `mod` 10, registerValue `mod` 10]
+      VM.incrementPC
     DumpRegisters endRegisterAddress -> do
       (registerValues, baseMemoryAddress) <-
         VM.withRegistersAction $
           (,) <$> traverse Registers.readVRegister [0 .. endRegisterAddress] <*> Registers.readAddrRegister
-      dumpRegisterValuesToLocation baseMemoryAddress registerValues
+      dumpValuesToLocation baseMemoryAddress registerValues
       VM.incrementPC
     LoadRegisters endRegisterAddress -> do
       baseMemoryAddress <- VM.withRegistersAction Registers.readAddrRegister
@@ -184,8 +189,8 @@ exec opCode =
 unimplemented :: OpCode -> VM.Action stackSize ()
 unimplemented opCode = VM.throwVMError $ "unimplemented opCode: " <> show opCode
 
-dumpRegisterValuesToLocation :: MemoryAddress -> [Word8] -> VM.Action stackSize ()
-dumpRegisterValuesToLocation baseMemoryAddress values =
+dumpValuesToLocation :: MemoryAddress -> [Word8] -> VM.Action stackSize ()
+dumpValuesToLocation baseMemoryAddress values =
   case values of
     [] -> pure ()
     value : rest -> do
@@ -194,8 +199,8 @@ dumpRegisterValuesToLocation baseMemoryAddress values =
         Nothing ->
           if null rest
             then pure ()
-            else VM.throwVMError "attempted to write memory out of bounds when dumping registers"
-        Just nextMemoryAddress -> dumpRegisterValuesToLocation nextMemoryAddress rest
+            else VM.throwVMError "attempted to write memory out of bounds writing values to memory"
+        Just nextMemoryAddress -> dumpValuesToLocation nextMemoryAddress rest
 
 loadRegisterValuesFromLocation :: MemoryAddress -> [VRegisterAddress] -> VM.Action stackSize ()
 loadRegisterValuesFromLocation baseMemoryAddress registerAddresses =

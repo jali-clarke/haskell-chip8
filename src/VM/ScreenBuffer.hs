@@ -24,6 +24,7 @@ import qualified Data.Finite as Finite
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
 import qualified Data.Vector.Unboxed.Sized as SizedVector
 import GHC.TypeNats (type (+))
+import qualified ShowHelpers
 
 type ScreenBufferData = SizedMVector.MVector ScreenBufferSize (PrimState IO) Bool
 
@@ -38,7 +39,8 @@ dumpState :: ScreenBuffer -> IO ()
 dumpState (ScreenBuffer bufferData) = do
   putStrLn "Screen buffer ('.' is 0, '#' is 1):"
   dataAsList <- traverse (SizedMVector.read bufferData) Finite.finites
-  forM_ (rows dataAsList) $ \row ->
+  let rows = ShowHelpers.rows (fromIntegral $ Finite.getFinite width) dataAsList
+  forM_ rows $ \row ->
     putStrLn $ "  " <> fmap (\b -> if b then '#' else '.') row
 
 newScreenBuffer :: IO ScreenBuffer
@@ -76,12 +78,3 @@ withBufferData callback =
 
 width :: Finite (ScreenWidth + 1)
 width = 64
-
-rows :: [a] -> [[a]]
-rows = chunk $ fromIntegral (Finite.getFinite width)
-
-chunk :: Int -> [a] -> [[a]]
-chunk rowSize allElems =
-  case allElems of
-    [] -> []
-    _ -> let (row, rest) = splitAt rowSize allElems in row : chunk rowSize rest

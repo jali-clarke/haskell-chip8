@@ -7,7 +7,12 @@
     flake = false;
   };
 
-  outputs = { self, nixpkgs, flake-utils, chip8-roms }:
+  inputs.chip8-test-rom = {
+    url = "github:corax89/chip8-test-rom";
+    flake = false;
+  };
+
+  outputs = { self, nixpkgs, flake-utils, chip8-roms, chip8-test-rom }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
@@ -33,6 +38,9 @@
           haskell-chip8 = pkgs.haskellPackages.callCabal2nix "haskell-chip8" ./. { };
           ibm-test = pkgs.writeShellScriptBin "ibm-test" ''
             exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-roms}/roms/IBM Logo.ch8" "$@"
+          '';
+          opcode-test = pkgs.writeShellScriptBin "opcode-test" ''
+            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-test-rom}/test_opcode.ch8" "$@"
           '';
           pong-test = pkgs.writeShellScriptBin "pong-test" ''
             exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-roms}/roms/Pong (alt).ch8" "$@"

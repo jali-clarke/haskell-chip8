@@ -16,6 +16,22 @@
         "type": "github"
       }
     },
+    "chip8-test-rom": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1590936136,
+        "narHash": "sha256-kWpsc3Puo3fB9yp+SvTqw5WI4LOJ8AJ1eMMxgVwiwrY=",
+        "owner": "corax89",
+        "repo": "chip8-test-rom",
+        "rev": "6a2cc38be6f5e527221353df024b840a86bc8e5f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "corax89",
+        "repo": "chip8-test-rom",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "locked": {
         "lastModified": 1649676176,
@@ -50,6 +66,7 @@
     "root": {
       "inputs": {
         "chip8-roms": "chip8-roms",
+        "chip8-test-rom": "chip8-test-rom",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs"
       }

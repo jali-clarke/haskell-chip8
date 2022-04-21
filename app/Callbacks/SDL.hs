@@ -66,7 +66,7 @@ pointsToDraw bufferData =
   let bufferDataListWithIndex = zip [0 ..] (SizedVector.toList bufferData)
       bufferDataSetPixels = filter snd bufferDataListWithIndex
       indexToV2 index = let (y, x) = index `quotRem` (fromIntegral bufferSufaceWidth) in V2 x y
-   in StorableVector.fromList $ fmap (\(index, _) -> P (indexToV2 index)) bufferDataSetPixels
+   in StorableVector.fromList $ fmap (P . indexToV2 . fst) bufferDataSetPixels
 
 toV2 :: (KnownNat width, KnownNat height) => Finite width -> Finite height -> V2 CInt
 toV2 width height = V2 (fromIntegral width) (fromIntegral height)

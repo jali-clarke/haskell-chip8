@@ -3,6 +3,7 @@ module ShowHelpers
     showMemoryAddress,
     showOpCodeBin,
     showRegisterAddress,
+    showSpriteHeight,
     showWord8,
   )
 where
@@ -19,6 +20,9 @@ showOpCodeBin = showHexValue 4
 
 showRegisterAddress :: VRegisterAddress -> String
 showRegisterAddress = showHexValue 1
+
+showSpriteHeight :: SpriteHeight -> String
+showSpriteHeight = showHexValue 1
 
 showWord8 :: Word8 -> String
 showWord8 = showHexValue 2

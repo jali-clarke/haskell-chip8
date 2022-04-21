@@ -5,6 +5,7 @@ where
 
 import BaseTypes
 import Data.Word (Word8)
+import qualified ShowHelpers
 
 -- see https://en.wikipedia.org/wiki/CHIP-8#Opcode_table
 -- it's all copy-pasta'd from there
@@ -105,4 +106,95 @@ data OpCode
   | -- FX65
     -- loads from V0 to Vx (including Vx) in memory, starting at the address specified by the address register
     LoadRegisters VRegisterAddress
-  deriving (Show)
+
+instance Show OpCode where
+  show opCode =
+    case opCode of
+      MachineCodeCall memoryAddress ->
+        showMemoryAddressOpCode "MachineCodeCall" memoryAddress
+      ClearDisplay ->
+        "ClearDisplay"
+      ReturnFromSubroutine ->
+        "ReturnFromSubroutine"
+      JumpToAddress memoryAddress ->
+        showMemoryAddressOpCode "JumpToAddress" memoryAddress
+      CallSubroutine memoryAddress ->
+        showMemoryAddressOpCode "CallSubroutine" memoryAddress
+      SkipNextIfRegisterEqualToConst registerAddress byte ->
+        showRegisterAddressByteOpCode "SkipNextIfRegisterEqualToConst" registerAddress byte
+      SkipNextIfRegisterNotEqualToConst registerAddress byte ->
+        showRegisterAddressByteOpCode "SkipNextIfRegisterNotEqualToConst" registerAddress byte
+      SkipNextIfRegisterEqualToRegister registerAddress0 registerAddress1 ->
+        showRegisterAddressRegisterAddressOpCode "SkipNextIfRegisterEqualToRegister" registerAddress0 registerAddress1
+      SetToConst registerAddress byte ->
+        showRegisterAddressByteOpCode "SetToConst" registerAddress byte
+      IncrementByConst registerAddress byte ->
+        showRegisterAddressByteOpCode "IncrementByConst" registerAddress byte
+      SetToRegister registerAddressDest registerAddressSrc ->
+        showRegisterAddressRegisterAddressOpCode "SetToRegister" registerAddressDest registerAddressSrc
+      OrRegisterInplace registerAddressDest registerAddressSrc ->
+        showRegisterAddressRegisterAddressOpCode "OrRegisterInplace" registerAddressDest registerAddressSrc
+      AndRegisterInplace registerAddressDest registerAddressSrc ->
+        showRegisterAddressRegisterAddressOpCode "AndRegisterInplace" registerAddressDest registerAddressSrc
+      XorRegisterInplace registerAddressDest registerAddressSrc ->
+        showRegisterAddressRegisterAddressOpCode "XorRegisterInplace" registerAddressDest registerAddressSrc
+      IncrementByRegister registerAddressDest registerAddressSrc ->
+        showRegisterAddressRegisterAddressOpCode "IncrementByRegister" registerAddressDest registerAddressSrc
+      DecrementByRegister registerAddressDest registerAddressSrc ->
+        showRegisterAddressRegisterAddressOpCode "DecrementByRegister" registerAddressDest registerAddressSrc
+      ShiftRight registerAddressDest ->
+        showRegisterAddressOpCode "ShiftRight" registerAddressDest
+      DecrementByRegisterReverse registerAddressDest registerAddressSrc ->
+        showRegisterAddressRegisterAddressOpCode "DecrementByRegisterReverse" registerAddressDest registerAddressSrc
+      ShiftLeft registerAddressDest ->
+        showRegisterAddressOpCode "ShiftLeft" registerAddressDest
+      SkipNextIfRegisterNotEqualToRegister registerAddressDest registerAddressSrc ->
+        showRegisterAddressRegisterAddressOpCode "SkipNextIfRegisterNotEqualToRegister" registerAddressDest registerAddressSrc
+      SetAddressRegisterToConst memoryAddress ->
+        showMemoryAddressOpCode "SetAddressRegisterToConst" memoryAddress
+      JumpToAddressWithOffset memoryAddress ->
+        showMemoryAddressOpCode "JumpToAddressWithOffset" memoryAddress
+      SetToRandomWithMask registerAddress byte ->
+        showRegisterAddressByteOpCode "SetToRandomWithMask" registerAddress byte
+      DrawSpriteAtCoords registerAddressX registerAddressY spriteHeight ->
+        showDrawOpCode "DrawSpriteAtCoords" registerAddressX registerAddressY spriteHeight
+      SkipNextIfKeyPressed registerAddress ->
+        showRegisterAddressOpCode "SkipNextIfKeyPressed" registerAddress
+      SkipNextIfKeyNotPressed registerAddress ->
+        showRegisterAddressOpCode "SkipNextIfKeyNotPressed" registerAddress
+      SetToDelayTimerValue registerAddress ->
+        showRegisterAddressOpCode "SetToDelayTimerValue" registerAddress
+      SetToKeyboardKey registerAddress ->
+        showRegisterAddressOpCode "SetToKeyboardKey" registerAddress
+      SetDelayTimerToRegister registerAddress ->
+        showRegisterAddressOpCode "SetDelayTimerToRegister" registerAddress
+      SetSoundTimerToRegister registerAddress ->
+        showRegisterAddressOpCode "SetSoundTimerToRegister" registerAddress
+      IncrementAddressRegisterByRegister registerAddress ->
+        showRegisterAddressOpCode "IncrementAddressRegisterByRegister" registerAddress
+      GetLetterSpriteAddress registerAddress ->
+        showRegisterAddressOpCode "GetLetterSpriteAddress" registerAddress
+      StoreBinaryCodedDecimalRep registerAddress ->
+        showRegisterAddressOpCode "StoreBinaryCodedDecimalRep" registerAddress
+      DumpRegisters registerAddress ->
+        showRegisterAddressOpCode "DumpRegisters" registerAddress
+      LoadRegisters registerAddress ->
+        showRegisterAddressOpCode "LoadRegisters" registerAddress
+
+showMemoryAddressOpCode :: String -> MemoryAddress -> String
+showMemoryAddressOpCode label memoryAddress = label <> " " <> ShowHelpers.showMemoryAddress memoryAddress
+
+showRegisterAddressByteOpCode :: String -> VRegisterAddress -> Word8 -> String
+showRegisterAddressByteOpCode label registerAddress byte =
+  label <> " " <> ShowHelpers.showRegisterAddress registerAddress <> " " <> ShowHelpers.showWord8 byte
+
+showRegisterAddressRegisterAddressOpCode :: String -> VRegisterAddress -> VRegisterAddress -> String
+showRegisterAddressRegisterAddressOpCode label registerAddressDest registerAddressSrc =
+  label <> " " <> ShowHelpers.showRegisterAddress registerAddressDest <> " " <> ShowHelpers.showRegisterAddress registerAddressSrc
+
+showRegisterAddressOpCode :: String -> VRegisterAddress -> String
+showRegisterAddressOpCode label registerAddress = label <> " " <> ShowHelpers.showRegisterAddress registerAddress
+
+showDrawOpCode :: String -> VRegisterAddress -> VRegisterAddress -> SpriteHeight -> String
+showDrawOpCode label registerAddressX registerAddressY spriteHeight =
+  label <> " " <> ShowHelpers.showRegisterAddress registerAddressX <> " " <> ShowHelpers.showRegisterAddress registerAddressY <> " " <> ShowHelpers.showSpriteHeight spriteHeight

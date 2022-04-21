@@ -6,6 +6,7 @@ module VM.Memory
   ( Memory,
     Action,
     runAction,
+    dumpState,
     memoryWithLoadedProgram,
     readMemory,
     writeMemory,
@@ -13,6 +14,7 @@ module VM.Memory
 where
 
 import BaseTypes
+import Control.Monad (forM_)
 import Control.Monad.Primitive (PrimState)
 import qualified Control.Monad.Reader as MTL
 import Data.Finite (Finite)
@@ -22,6 +24,7 @@ import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
 import Data.Word (Word8)
 import GHC.TypeNats (type (<=))
 import qualified GHC.TypeNats as TypeNats
+import qualified ShowHelpers
 import SizedByteString (SizedByteString)
 import qualified SizedByteString
 
@@ -33,6 +36,16 @@ newtype Action a = Action (MTL.ReaderT Memory IO a) deriving (Functor, Applicati
 
 runAction :: Action a -> Memory -> IO a
 runAction (Action action) memory = MTL.runReaderT action memory
+
+dumpState :: Memory -> IO ()
+dumpState (Memory memoryData) = do
+  putStrLn "Memory:"
+  putStrLn "          0x__0 0x__1 0x__2 0x__3 0x__4 0x__5 0x__6 0x__7 0x__8 0x__9 0x__a 0x__b 0x__c 0x__d 0x__e 0x__f"
+  putStrLn "         ------------------------------------------------------------------------------------------------"
+  memoryDataAsList <- traverse (SizedMVector.read memoryData) Finite.finites
+  let rowsWithIndex = zip [0x00 .. 0xff] (ShowHelpers.rows 16 memoryDataAsList)
+  forM_ rowsWithIndex $ \(rowIndex, row) ->
+    putStrLn $ "  " <> ShowHelpers.showWord8 rowIndex <> "_ |" <> dumpStateRowString row
 
 memoryWithLoadedProgram :: (TypeNats.KnownNat programSize, programSize <= MemorySize) => SizedByteString programSize -> IO Memory
 memoryWithLoadedProgram programRom = do
@@ -59,3 +72,6 @@ writeBinFromProgram programRom (Memory memoryData) programAddress =
   let programByte = SizedByteString.byteAt programRom programAddress
       memoryAddress = Finite.finite (Finite.getFinite programAddress)
    in SizedMVector.write memoryData memoryAddress programByte
+
+dumpStateRowString :: [Word8] -> String
+dumpStateRowString = concat . fmap (\byte -> "  " <> ShowHelpers.showWord8 byte)

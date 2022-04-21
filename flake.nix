@@ -12,7 +12,12 @@
     flake = false;
   };
 
-  outputs = { self, nixpkgs, flake-utils, chip8-roms, chip8-test-rom }:
+  inputs.chip8-test-rom2 = {
+    url = "github:daniel5151/AC8E";
+    flake = false;
+  };
+
+  outputs = { self, nixpkgs, flake-utils, chip8-roms, chip8-test-rom, chip8-test-rom2 }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
@@ -41,6 +46,9 @@
           '';
           opcode-test = pkgs.writeShellScriptBin "opcode-test" ''
             exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-test-rom}/test_opcode.ch8" "$@"
+          '';
+          opcode-test2 = pkgs.writeShellScriptBin "opcode-test2" ''
+            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-test-rom2}/roms/bc_test.ch8" "$@"
           '';
           pong-test = pkgs.writeShellScriptBin "pong-test" ''
             exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-roms}/roms/Pong (alt).ch8" "$@"

@@ -32,6 +32,22 @@
         "type": "github"
       }
     },
+    "chip8-test-rom2": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1498938708,
+        "narHash": "sha256-wvl1swQT2RDw9N7mk/qVkBp/I9370of0edPAQD0s2xA=",
+        "owner": "daniel5151",
+        "repo": "AC8E",
+        "rev": "c2dbf92858055cc1c72e50727b3d244a92850df2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "daniel5151",
+        "repo": "AC8E",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "locked": {
         "lastModified": 1649676176,
@@ -67,6 +83,7 @@
       "inputs": {
         "chip8-roms": "chip8-roms",
         "chip8-test-rom": "chip8-test-rom",
+        "chip8-test-rom2": "chip8-test-rom2",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs"
       }

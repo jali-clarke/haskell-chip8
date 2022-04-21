@@ -2,6 +2,7 @@ module ShowHelpers
   ( rows,
     showMemoryAddress,
     showOpCodeBin,
+    showRegisterAddress,
     showWord8,
   )
 where
@@ -15,6 +16,9 @@ showMemoryAddress = showHexValue 3
 
 showOpCodeBin :: OpCodeBin -> String
 showOpCodeBin = showHexValue 4
+
+showRegisterAddress :: VRegisterAddress -> String
+showRegisterAddress = showHexValue 1
 
 showWord8 :: Word8 -> String
 showWord8 = showHexValue 2

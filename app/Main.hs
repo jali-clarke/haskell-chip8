@@ -71,18 +71,8 @@ renderToTerminal :: SizedVector.Vector ScreenBufferSize Bool -> IO ()
 renderToTerminal screenData = do
   ANSI.clearScreen
   ANSI.setCursorPosition 0 0
-  traverse_ printRow (rows screenData)
-
-rows :: SizedVector.Vector ScreenBufferSize Bool -> [[Bool]]
-rows = chunk 64 . SizedVector.toList
+  let rows = ShowHelpers.rows 64 (SizedVector.toList screenData)
+  traverse_ printRow rows
 
 printRow :: [Bool] -> IO ()
-printRow rowData = do
-  traverse_ (\b -> if b then putChar '#' else putChar ' ') rowData
-  putChar '\n'
-
-chunk :: Int -> [a] -> [[a]]
-chunk n as =
-  case splitAt n as of
-    ([], []) -> []
-    (prefix, rest) -> prefix : chunk n rest
+printRow rowData = putStrLn $ fmap (\b -> if b then '#' else ' ') rowData <> "\n"

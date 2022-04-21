@@ -1,4 +1,10 @@
-module ShowHelpers (rows, showMemoryAddress, showWord8) where
+module ShowHelpers
+  ( rows,
+    showMemoryAddress,
+    showOpCodeBin,
+    showWord8,
+  )
+where
 
 import BaseTypes
 import Data.Word (Word8)
@@ -6,6 +12,9 @@ import qualified Numeric
 
 showMemoryAddress :: MemoryAddress -> String
 showMemoryAddress = showHexValue 3
+
+showOpCodeBin :: OpCodeBin -> String
+showOpCodeBin = showHexValue 4
 
 showWord8 :: Word8 -> String
 showWord8 = showHexValue 2

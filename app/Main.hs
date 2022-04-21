@@ -12,10 +12,11 @@ import qualified GHC.TypeNats as TypeNats
 import qualified OpCode
 import Options.Applicative ((<**>))
 import qualified Options.Applicative as Options
+import qualified ShowHelpers
 import qualified System.Console.ANSI as ANSI
 import qualified VM
 import qualified VM.Config
-import qualified VM.Config as VM (Config(Config))
+import qualified VM.Config as VM (Config (Config))
 import VM.MachineCallbacks (MachineCallbacks (..))
 
 main :: IO ()
@@ -42,9 +43,12 @@ vmLoop :: TypeNats.KnownNat stackSize => VM.Action stackSize ()
 vmLoop =
   forever $ do
     opCodeBin <- VM.getOpCodeBin
+    VM.debugLog $ "got raw opcode: " <> ShowHelpers.showOpCodeBin opCodeBin
     case OpCode.decode opCodeBin of
       Nothing -> VM.throwVMError $ "unknown opcode: " <> show opCodeBin
-      Just opCode -> OpCode.exec opCode
+      Just opCode -> do
+        VM.debugLog $ "executing parsed opcode: " <> show opCode
+        OpCode.exec opCode
 
 toVMConfig :: CLI.Options -> IO VM.Config
 toVMConfig options = do

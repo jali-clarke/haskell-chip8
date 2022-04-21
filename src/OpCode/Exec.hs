@@ -15,6 +15,7 @@ import qualified Data.Finite as Finite
 import Data.Word (Word8)
 import qualified GHC.TypeNats as TypeNats
 import OpCode.Type
+import qualified ShowHelpers
 import TypeNatsHelpers
 import qualified VM
 import qualified VM.Memory as Memory
@@ -168,7 +169,11 @@ exec opCode =
         Nothing -> VM.throwVMError "attempted to increment address register beyond memory bounds"
         Just newAddressRegisterValue -> VM.withRegistersAction $ Registers.writeAddrRegister newAddressRegisterValue
       VM.incrementPC
-    GetLetterSpriteAddress _ -> unimplemented opCode
+    GetLetterSpriteAddress registerAddress -> do
+      registerValue <- VM.withRegistersAction $ Registers.readVRegister registerAddress
+      if registerValue < 0x10
+        then VM.withRegistersAction $ Registers.writeAddrRegister (fromIntegral registerValue * 5)
+        else VM.throwVMError $ "attempted to get sprite address for invalid value: " <> ShowHelpers.showWord8 registerValue
     StoreBinaryCodedDecimalRep registerAddress -> do
       (registerValue, baseMemoryAddress) <-
         VM.withRegistersAction $

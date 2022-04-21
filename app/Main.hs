@@ -14,6 +14,8 @@ import Options.Applicative ((<**>))
 import qualified Options.Applicative as Options
 import qualified System.Console.ANSI as ANSI
 import qualified VM
+import qualified VM.Config
+import qualified VM.Config as VM (Config(Config))
 import VM.MachineCallbacks (MachineCallbacks (..))
 
 main :: IO ()
@@ -24,26 +26,17 @@ main =
    in Options.execParser parserWithInfo >>= execCLIOpts
 
 execCLIOpts :: CLI.Options -> IO ()
-execCLIOpts options =
-  let callbacks =
-        MachineCallbacks
-          { blockingGetKeyboardKey = pure 'f',
-            isKeyPressed = \_ -> pure False,
-            randomByte = pure 0,
-            renderFrozenScreenBufferData = renderToTerminal
-          }
-   in do
-        romBytes <- ByteString.readFile (CLI.romFilePath options)
-        let maxStackSize = CLI.maxStackSize options
-        VM.withNewVMState callbacks maxStackSize romBytes $ \maybeVmState ->
-          case maybeVmState of
-            Left err -> putStrLn err
-            Right vmState -> do
-              (maybeResult, endState) <- VM.runAction vmLoop vmState
-              case maybeResult of
-                Left err -> putStrLn $ err <> "\n"
-                Right () -> pure ()
-              VM.dumpState endState
+execCLIOpts options = do
+  vmConfig <- toVMConfig options
+  VM.withNewVMState vmConfig $ \maybeVmState ->
+    case maybeVmState of
+      Left err -> putStrLn err
+      Right vmState -> do
+        (maybeResult, endState) <- VM.runAction vmLoop vmState
+        case maybeResult of
+          Left err -> putStrLn $ err <> "\n"
+          Right () -> pure ()
+        VM.dumpState endState
 
 vmLoop :: TypeNats.KnownNat stackSize => VM.Action stackSize ()
 vmLoop =
@@ -52,6 +45,23 @@ vmLoop =
     case OpCode.decode opCodeBin of
       Nothing -> VM.throwVMError $ "unknown opcode: " <> show opCodeBin
       Just opCode -> OpCode.exec opCode
+
+toVMConfig :: CLI.Options -> IO VM.Config
+toVMConfig options = do
+  romBytes <- ByteString.readFile (CLI.romFilePath options)
+  pure $
+    VM.Config
+      { VM.Config.machineCallbacks =
+          MachineCallbacks
+            { blockingGetKeyboardKey = pure 'f',
+              isKeyPressed = \_ -> pure False,
+              randomByte = pure 0,
+              renderFrozenScreenBufferData = renderToTerminal
+            },
+        VM.Config.maxStackSize = CLI.maxStackSize options,
+        VM.Config.programRom = romBytes,
+        VM.Config.shouldLog = CLI.verboseMode options
+      }
 
 renderToTerminal :: SizedVector.Vector ScreenBufferSize Bool -> IO ()
 renderToTerminal screenData = do

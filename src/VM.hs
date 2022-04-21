@@ -33,7 +33,6 @@ import BaseTypes
 import qualified Control.Monad.Except as MTL
 import qualified Control.Monad.State.Strict as MTL
 import Data.Bits (unsafeShiftL, (.|.))
-import Data.ByteString (ByteString)
 import qualified Data.Finite as Finite
 import Data.Proxy (Proxy (..))
 import Data.Type.Equality ((:~:) (..))
@@ -43,6 +42,8 @@ import qualified GHC.TypeNats as TypeNats
 import qualified ShowHelpers
 import qualified SizedByteString
 import TypeNatsHelpers
+import VM.Config (Config)
+import qualified VM.Config as Config
 import VM.MachineCallbacks (MachineCallbacks)
 import qualified VM.MachineCallbacks as MachineCallbacks
 import VM.Memory (Memory)
@@ -68,10 +69,10 @@ data VMState stackSize = VMState
 
 newtype Action stackSize a = Action (MTL.ExceptT String (MTL.StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
 
-withNewVMState :: MachineCallbacks -> Int -> ByteString -> (forall stackSize. TypeNats.KnownNat stackSize => Either String (VMState stackSize) -> IO r) -> IO r
-withNewVMState theseMachineCallbacks maxStackSize programRom callback =
-  Stack.withNewStack maxStackSize $ \(newStack :: Stack thisStackSize) ->
-    SizedByteString.withSized programRom $ \sizedProgramRom -> do
+withNewVMState :: Config -> (forall stackSize. TypeNats.KnownNat stackSize => Either String (VMState stackSize) -> IO r) -> IO r
+withNewVMState config callback =
+  Stack.withNewStack (Config.maxStackSize config) $ \(newStack :: Stack thisStackSize) ->
+    SizedByteString.withSized (Config.programRom config) $ \sizedProgramRom -> do
       let byteStringSize = SizedByteString.length' sizedProgramRom
       case TypeNats.sameNat byteStringSize (Proxy :: Proxy 0) of
         Just Refl -> callback (Left "program is empty" :: Either String (VMState thisStackSize))
@@ -84,7 +85,7 @@ withNewVMState theseMachineCallbacks maxStackSize programRom callback =
               newScreenBuffer <- ScreenBuffer.newScreenBuffer
               let newState =
                     VMState
-                      { machineCallbacks = theseMachineCallbacks,
+                      { machineCallbacks = Config.machineCallbacks config,
                         memory = loadedMemory,
                         registers = newRegisters,
                         screenBuffer = newScreenBuffer,

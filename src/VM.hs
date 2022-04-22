@@ -28,6 +28,7 @@ module VM
     throwVMError,
     dumpState,
     debugLog,
+    delayTick,
   )
 where
 
@@ -279,10 +280,13 @@ debugLog message =
     when shouldLogMessage $
       MTL.liftIO $ putStrLn message
 
+delayTick :: Action vmState ()
+delayTick = Action $ MTL.liftIO (threadDelay 16666) -- 1/60th of a second
+
 timerLoop :: Action vmState ()
 timerLoop =
   forever $ do
     soundTimerValue <- withTimersAction Timers.getSoundTimer
     unless (soundTimerValue == 0x00) $ withPlatform Platform.beep
-    Action $ MTL.liftIO (threadDelay 16666) -- 1/60th of a second
+    delayTick
     withTimersAction Timers.tickTimers

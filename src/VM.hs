@@ -32,6 +32,7 @@ module VM
 where
 
 import BaseTypes
+import Control.Concurrent.MVar (MVar)
 import Control.Monad (when)
 import qualified Control.Monad.Except as MTL
 import qualified Control.Monad.State.Strict as MTL
@@ -67,7 +68,7 @@ data VMState stackSize = VMState
     registers :: Registers,
     screenBuffer :: ScreenBuffer,
     stack :: Stack stackSize,
-    timers :: Timers,
+    timers :: MVar Timers,
     pc :: MemoryAddress,
     platform :: Platform,
     shouldLog :: Bool
@@ -95,6 +96,7 @@ withNewVMState config callback =
                         Right loadedMemory -> do
                           newRegisters <- Registers.newRegisters
                           newScreenBuffer <- ScreenBuffer.newScreenBuffer
+                          timersMVar <- Timers.newTimers
                           let newState =
                                 VMState
                                   { platform = Config.platform config,
@@ -102,7 +104,7 @@ withNewVMState config callback =
                                     registers = newRegisters,
                                     screenBuffer = newScreenBuffer,
                                     stack = newStack,
-                                    timers = Timers.newTimers,
+                                    timers = timersMVar,
                                     pc = 0x200,
                                     shouldLog = Config.shouldLog config
                                   }
@@ -149,10 +151,8 @@ withStackAction stackAction = do
 withTimersAction :: Timers.Action a -> Action stackSize a
 withTimersAction timersAction =
   Action $ do
-    vmState <- MTL.get
-    let (result, newTimers) = Timers.runAction timersAction (timers vmState)
-    MTL.put (vmState {timers = newTimers})
-    pure result
+    timersMVar <- MTL.gets timers
+    MTL.liftIO $ Timers.runAction timersAction timersMVar
 
 getOpCodeBin :: Action stackSize OpCodeBin
 getOpCodeBin = do

@@ -16,6 +16,7 @@ executables:
     - ansi-terminal
     - base
     - bytestring
+    - containers
     - finite-typelits
     - haskell-chip8
     - optparse-applicative

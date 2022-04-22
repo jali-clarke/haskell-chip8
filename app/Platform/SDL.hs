@@ -10,8 +10,13 @@ module Platform.SDL
 where
 
 import BaseTypes
+import Control.Concurrent.MVar (MVar)
+import qualified Control.Concurrent.MVar as MVar
 import Control.Exception (bracket, bracket_)
+import Data.Char (chr)
 import Data.Finite (Finite)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import Data.StateVar (($=))
 import qualified Data.Vector.Storable as StorableVector
 import qualified Data.Vector.Unboxed.Sized as SizedVector
@@ -26,12 +31,21 @@ newtype WindowCtx = WindowCtx
   { windowRenderer :: SDL.Renderer
   }
 
+data KeyboardState = KeyboardState
+  { pressedKeys :: MVar (Map Char Bool),
+    currentlyPressedKey :: MVar Char
+  }
+
 withPlatform :: (Platform -> IO a) -> IO a
-withPlatform platformCallback =
+withPlatform platformCallback = do
+  let initialKeyMap = Map.fromList $ zip (fmap chr [0 .. 255]) (repeat False)
+  keyboardState <- KeyboardState <$> MVar.newMVar initialKeyMap <*> MVar.newEmptyMVar
   withWindowCtx $ \windowCtx ->
     let platform =
           Platform.stubPlatform
-            { Platform.renderFrozenScreenBufferData = renderWithWindowCtx windowCtx
+            { Platform.blockingGetKeyboardKey = blockingGetKeyboardKey keyboardState,
+              Platform.isKeyPressed = isKeyPressed keyboardState,
+              Platform.renderFrozenScreenBufferData = renderWithWindowCtx windowCtx
             }
      in platformCallback platform
 
@@ -60,6 +74,14 @@ renderWithWindowCtx windowCtx bufferData =
         SDL.rendererDrawColor thisWindowRenderer $= V4 0xff 0xff 0xff 0xff
         SDL.drawPoints thisWindowRenderer (pointsToDraw bufferData)
         SDL.present thisWindowRenderer
+
+isKeyPressed :: KeyboardState -> Char -> IO Bool
+isKeyPressed keyboardState char = do
+  keyMap <- MVar.readMVar $ pressedKeys keyboardState
+  pure $ Map.findWithDefault False char keyMap
+
+blockingGetKeyboardKey :: KeyboardState -> IO Char
+blockingGetKeyboardKey keyboardState = MVar.readMVar $ currentlyPressedKey keyboardState
 
 pointsToDraw :: SizedVector.Vector ScreenBufferSize Bool -> StorableVector.Vector (SDL.Point V2 CInt)
 pointsToDraw bufferData =

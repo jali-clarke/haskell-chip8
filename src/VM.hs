@@ -11,6 +11,7 @@ module VM
     Action,
     withNewVMState,
     runAction,
+    asyncAction,
     withMemoryAction,
     withRegistersAction,
     withScreenBufferAction,
@@ -34,7 +35,7 @@ where
 
 import BaseTypes
 import Control.Concurrent (threadDelay)
-import Control.Concurrent.Async (async)
+import Control.Concurrent.Async (Async, async)
 import Control.Concurrent.MVar (MVar)
 import Control.Monad (forever, unless, void, when)
 import qualified Control.Monad.Except as MTL
@@ -115,14 +116,17 @@ withNewVMState config callback =
 
 runAction :: Action stackSize a -> VMState stackSize -> IO (Either String a, VMState stackSize)
 runAction action vmState = do
-  asyncAction timerLoop vmState
+  void $ asyncAction' timerLoop vmState
   runAction' action vmState
 
-asyncAction :: Action stackSize a -> VMState stackSize -> IO ()
-asyncAction action = void . async . runAction' action
+asyncAction :: Action stackSize a -> VMState stackSize -> IO (Async (Either String a, VMState stackSize))
+asyncAction action vmState = async (runAction action vmState)
 
 runAction' :: Action stackSize a -> VMState stackSize -> IO (Either String a, VMState stackSize)
 runAction' (Action action) vmState = MTL.runStateT (MTL.runExceptT action) vmState
+
+asyncAction' :: Action stackSize a -> VMState stackSize -> IO (Async (Either String a, VMState stackSize))
+asyncAction' action vmState = async (runAction' action vmState)
 
 withMemoryAction :: Memory.Action a -> Action stackSize a
 withMemoryAction memoryAction =

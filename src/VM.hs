@@ -24,6 +24,7 @@ module VM
     getKeyboardKey,
     isKeyPressed,
     renderFrozenScreenBufferData,
+    beep,
     throwVMError,
     dumpState,
     debugLog,
@@ -233,6 +234,9 @@ renderFrozenScreenBufferData = do
   frozenBufferData <- withScreenBufferAction ScreenBuffer.frozenBufferData
   withPlatform $ \thisPlatform ->
     Platform.renderFrozenScreenBufferData thisPlatform frozenBufferData
+
+beep :: Action stackSize ()
+beep = withPlatform Platform.beep
 
 throwVMError :: String -> Action stackSize a
 throwVMError errMsg = Action $ MTL.throwError errMsg

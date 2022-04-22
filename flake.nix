@@ -53,6 +53,9 @@
           pong-test = pkgs.writeShellScriptBin "pong-test" ''
             exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-roms}/roms/Pong (alt).ch8" "$@"
           '';
+          space-invaders-test = pkgs.writeShellScriptBin "space-invaders-test" ''
+            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-test-rom2}/roms/games/INVADERS" "$@"
+          '';
         };
 
         devShell = pkgs.mkShell {

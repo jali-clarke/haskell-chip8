@@ -10,13 +10,16 @@ build with either `cabal` (using `hpack`) or `nix`.
 $ haskell-chip8 --help
 
 Usage: haskell-chip8 ROM_FILE_PATH [-s|--max-stack-size MAX_STACK_SIZE] 
-                     [-v|--verbose]
+                     [-t|--tick-rate TICK_RATE_INTERVAL] [-v|--verbose]
   emulate execution of a CHIP-8 rom
 
 Available options:
   ROM_FILE_PATH            path to rom file
   -s,--max-stack-size MAX_STACK_SIZE
                            max stack size / recursion depth (default: 50)
+  -t,--tick-rate TICK_RATE_INTERVAL
+                           tick rate in microseconds per instruction
+                           (default: 2000)
   -v,--verbose             enable debug logging if flag is set
   -h,--help                Show this help text
 ```

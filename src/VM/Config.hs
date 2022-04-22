@@ -4,8 +4,9 @@ import Data.ByteString (ByteString)
 import VM.Platform (Platform)
 
 data Config = Config
-  { platform :: Platform,
-    maxStackSize :: Int,
+  { maxStackSize :: Int,
+    platform :: Platform,
     programRom :: ByteString,
-    shouldLog :: Bool
+    shouldLog :: Bool,
+    tickRate :: Int -- microseconds
   }

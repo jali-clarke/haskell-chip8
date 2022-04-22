@@ -43,15 +43,16 @@ vmLoop =
       Just opCode -> do
         VM.debugLog $ "executing parsed opcode: " <> show opCode
         OpCode.exec opCode
-        VM.delayTick 2000 -- 1/500th of a second
+        VM.delayTick
 
 toVMConfig :: CLI.Options -> Platform -> IO VM.Config
 toVMConfig options platform = do
   romBytes <- ByteString.readFile (CLI.romFilePath options)
   pure $
     VM.Config
-      { VM.Config.platform = platform,
-        VM.Config.maxStackSize = CLI.maxStackSize options,
+      { VM.Config.maxStackSize = CLI.maxStackSize options,
+        VM.Config.platform = platform,
         VM.Config.programRom = romBytes,
-        VM.Config.shouldLog = CLI.verboseMode options
+        VM.Config.shouldLog = CLI.verboseMode options,
+        VM.Config.tickRate = CLI.tickRate options
       }

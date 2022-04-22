@@ -75,7 +75,8 @@ data VMState stackSize = VMState
     timers :: MVar Timers,
     pc :: MemoryAddress,
     platform :: Platform,
-    shouldLog :: Bool
+    shouldLog :: Bool,
+    tickRate :: Int -- microseconds
   }
 
 newtype Action stackSize a = Action (MTL.ExceptT String (MTL.StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
@@ -110,7 +111,8 @@ withNewVMState config callback =
                                     stack = newStack,
                                     timers = timersMVar,
                                     pc = 0x200,
-                                    shouldLog = Config.shouldLog config
+                                    shouldLog = Config.shouldLog config,
+                                    tickRate = Config.tickRate config
                                   }
                           callback (Right newState)
 
@@ -284,13 +286,18 @@ debugLog message =
     when shouldLogMessage $
       MTL.liftIO $ putStrLn message
 
-delayTick :: Int -> Action vmState ()
-delayTick delayMicroSeconds = Action $ MTL.liftIO (threadDelay delayMicroSeconds) -- 1/60th of a second
+delayTick :: Action vmState ()
+delayTick = do
+  thisTickRate <- Action $ MTL.gets tickRate
+  delayTick' thisTickRate
+
+delayTick' :: Int -> Action vmState ()
+delayTick' delayMicroSeconds = Action $ MTL.liftIO (threadDelay delayMicroSeconds)
 
 timerLoop :: Action vmState ()
 timerLoop =
   forever $ do
     soundTimerValue <- withTimersAction Timers.getSoundTimer
     unless (soundTimerValue == 0x00) $ withPlatform Platform.beep
-    delayTick 16666 -- 1/60th of a second
+    delayTick' 16666 -- 1/60th of a second
     withTimersAction Timers.tickTimers

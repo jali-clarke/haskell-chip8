@@ -32,7 +32,8 @@ module VM
 where
 
 import BaseTypes
-import Control.Concurrent (forkIO, threadDelay)
+import Control.Concurrent (threadDelay)
+import Control.Concurrent.Async (async)
 import Control.Concurrent.MVar (MVar)
 import Control.Monad (forever, unless, void, when)
 import qualified Control.Monad.Except as MTL
@@ -113,11 +114,11 @@ withNewVMState config callback =
 
 runAction :: Action stackSize a -> VMState stackSize -> IO (Either String a, VMState stackSize)
 runAction action vmState = do
-  forkAction timerLoop vmState
+  asyncAction timerLoop vmState
   runAction' action vmState
 
-forkAction :: Action stackSize a -> VMState stackSize -> IO ()
-forkAction action = void . forkIO . void . runAction' action
+asyncAction :: Action stackSize a -> VMState stackSize -> IO ()
+asyncAction action = void . async . runAction' action
 
 runAction' :: Action stackSize a -> VMState stackSize -> IO (Either String a, VMState stackSize)
 runAction' (Action action) vmState = MTL.runStateT (MTL.runExceptT action) vmState

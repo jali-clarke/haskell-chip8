@@ -33,6 +33,7 @@ library:
   source-dirs:
   - src
   dependencies:
+  - async
   - bytestring
   - finite-typelits
   - mtl

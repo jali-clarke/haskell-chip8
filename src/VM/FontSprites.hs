@@ -3,8 +3,8 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE NoStarIsType #-}
 
-module VM.Sprites
-  ( allSprites,
+module VM.FontSprites
+  ( allFontSprites,
   )
 where
 
@@ -12,13 +12,13 @@ import qualified Data.Vector.Unboxed.Sized as SizedVector
 import Data.Word (Word8)
 import GHC.TypeNats (type (*))
 
-type BytesPerSprite = 5
+type BytesPerFontSprite = 5
 
 type NumSprites = 16
 
-allSprites :: SizedVector.Vector (NumSprites * BytesPerSprite) Word8
-allSprites =
-  let allSpritesList =
+allFontSprites :: SizedVector.Vector (NumSprites * BytesPerFontSprite) Word8
+allFontSprites =
+  let allFontSpritesList =
         concat
           [ sprite0,
             sprite1,
@@ -37,9 +37,9 @@ allSprites =
             spritee,
             spritef
           ]
-   in case SizedVector.fromList allSpritesList of
+   in case SizedVector.fromList allFontSpritesList of
         Nothing -> error "the author of this code failed to size VM.Sprites.allSprites correctly"
-        Just allSpritesVec -> allSpritesVec
+        Just allFontSpritesVec -> allFontSpritesVec
 
 sprite0 :: [Word8]
 sprite0 =

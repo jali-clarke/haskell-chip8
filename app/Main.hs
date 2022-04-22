@@ -43,6 +43,7 @@ vmLoop =
       Just opCode -> do
         VM.debugLog $ "executing parsed opcode: " <> show opCode
         OpCode.exec opCode
+        VM.delayTick 2000 -- 1/500th of a second
 
 toVMConfig :: CLI.Options -> Platform -> IO VM.Config
 toVMConfig options platform = do

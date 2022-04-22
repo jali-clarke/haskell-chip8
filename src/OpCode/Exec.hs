@@ -84,7 +84,7 @@ exec opCode =
       VM.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (+) (\old _ new -> new < old)
       VM.incrementPC
     DecrementByRegister registerAddressDest registerAddressSrc -> do
-      VM.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (-) (\old _ new -> new > old)
+      VM.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (-) (\old _ new -> new <= old)
       VM.incrementPC
     ShiftRight registerAddress -> do
       VM.withRegistersAction $ do
@@ -95,7 +95,7 @@ exec opCode =
         Registers.writeVRegister flagRegister flagRegisterValue
       VM.incrementPC
     DecrementByRegisterReverse registerAddressDest registerAddressSrc -> do
-      VM.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (flip (-)) (\_ src new -> new > src)
+      VM.withRegistersAction $ inplaceBinaryOperationWithFlag registerAddressDest registerAddressSrc (flip (-)) (\_ src new -> new <= src)
       VM.incrementPC
     ShiftLeft registerAddress -> do
       VM.withRegistersAction $ do

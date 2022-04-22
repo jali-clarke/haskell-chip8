@@ -111,7 +111,10 @@ withMemoryAction :: Memory.Action a -> Action stackSize a
 withMemoryAction memoryAction =
   Action $ do
     thisMemory <- MTL.gets memory
-    MTL.liftIO $ Memory.runAction memoryAction thisMemory
+    maybeResult <- MTL.liftIO $ Memory.runAction memoryAction thisMemory
+    case maybeResult of
+      Left err -> MTL.throwError err
+      Right value -> pure value
 
 withRegistersAction :: Registers.Action a -> Action stackSize a
 withRegistersAction registersAction =

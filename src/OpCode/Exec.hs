@@ -178,13 +178,14 @@ exec opCode =
       (registerValue, baseMemoryAddress) <-
         VM.withRegistersAction $
           (,) <$> Registers.readVRegister registerAddress <*> Registers.readAddrRegister
-      dumpValuesToLocation baseMemoryAddress [registerValue `div` 100, (registerValue `div` 10) `mod` 10, registerValue `mod` 10]
+      VM.withMemoryAction $
+        Memory.writeMemoryMultiple baseMemoryAddress [registerValue `div` 100, (registerValue `div` 10) `mod` 10, registerValue `mod` 10]
       VM.incrementPC
     DumpRegisters endRegisterAddress -> do
       (registerValues, baseMemoryAddress) <-
         VM.withRegistersAction $
           (,) <$> traverse Registers.readVRegister [0 .. endRegisterAddress] <*> Registers.readAddrRegister
-      dumpValuesToLocation baseMemoryAddress registerValues
+      VM.withMemoryAction $ Memory.writeMemoryMultiple baseMemoryAddress registerValues
       VM.incrementPC
     LoadRegisters endRegisterAddress -> do
       baseMemoryAddress <- VM.withRegistersAction Registers.readAddrRegister
@@ -193,19 +194,6 @@ exec opCode =
 
 unimplemented :: OpCode -> VM.Action stackSize ()
 unimplemented opCode = VM.throwVMError $ "unimplemented opCode: " <> show opCode
-
-dumpValuesToLocation :: MemoryAddress -> [Word8] -> VM.Action stackSize ()
-dumpValuesToLocation baseMemoryAddress values =
-  case values of
-    [] -> pure ()
-    value : rest -> do
-      VM.withMemoryAction $ Memory.writeMemory baseMemoryAddress value
-      case addOne baseMemoryAddress of
-        Nothing ->
-          if null rest
-            then pure ()
-            else VM.throwVMError "attempted to write memory out of bounds writing values to memory"
-        Just nextMemoryAddress -> dumpValuesToLocation nextMemoryAddress rest
 
 loadRegisterValuesFromLocation :: MemoryAddress -> [VRegisterAddress] -> VM.Action stackSize ()
 loadRegisterValuesFromLocation baseMemoryAddress registerAddresses =

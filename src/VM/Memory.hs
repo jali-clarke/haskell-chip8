@@ -11,12 +11,14 @@ module VM.Memory
     memoryWithLoadedProgram,
     readMemory,
     writeMemory,
+    writeMemoryMultiple
   )
 where
 
 import BaseTypes
 import Control.Monad (forM_)
 import Control.Monad.Primitive (PrimState)
+import qualified Control.Monad.Except as MTL
 import qualified Control.Monad.Reader as MTL
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite
@@ -28,15 +30,16 @@ import qualified GHC.TypeNats as TypeNats
 import qualified ShowHelpers
 import SizedByteString (SizedByteString)
 import qualified SizedByteString
+import TypeNatsHelpers
 
 type MemoryData = SizedMVector.MVector MemorySize (PrimState IO) Word8
 
 newtype Memory = Memory MemoryData
 
-newtype Action a = Action (MTL.ReaderT Memory IO a) deriving (Functor, Applicative, Monad)
+newtype Action a = Action (MTL.ReaderT Memory (MTL.ExceptT String IO) a) deriving (Functor, Applicative, Monad)
 
-runAction :: Action a -> Memory -> IO a
-runAction (Action action) memory = MTL.runReaderT action memory
+runAction :: Action a -> Memory -> IO (Either String a)
+runAction (Action action) memory = MTL.runExceptT (MTL.runReaderT action memory)
 
 dumpState :: Memory -> IO ()
 dumpState (Memory memoryData) = do
@@ -67,6 +70,19 @@ writeMemory memoryAddress byte =
   Action $ do
     Memory memoryData <- MTL.ask
     MTL.liftIO $ SizedMVector.write memoryData memoryAddress byte
+
+writeMemoryMultiple :: MemoryAddress -> [Word8] -> Action ()
+writeMemoryMultiple baseMemoryAddress values =
+  case values of
+    [] -> pure ()
+    value : rest -> do
+      writeMemory baseMemoryAddress value
+      case addOne baseMemoryAddress of
+        Nothing ->
+          if null rest
+            then pure ()
+            else Action $ MTL.throwError "attempted to write memory out of bounds"
+        Just nextMemoryAddress -> writeMemoryMultiple nextMemoryAddress rest
 
 writeBinFromProgram :: ((programSize + 512) <= MemorySize) => SizedByteString programSize -> Memory -> Finite programSize -> IO ()
 writeBinFromProgram programRom (Memory memoryData) programAddress =

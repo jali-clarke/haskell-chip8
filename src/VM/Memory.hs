@@ -11,14 +11,14 @@ module VM.Memory
     memoryWithLoadedProgramAndFontData,
     readMemory,
     writeMemory,
-    writeMemoryMultiple
+    writeMemoryMultiple,
   )
 where
 
 import BaseTypes
 import Control.Monad (forM_)
-import Control.Monad.Primitive (PrimState)
 import qualified Control.Monad.Except as MTL
+import Control.Monad.Primitive (PrimState)
 import qualified Control.Monad.Reader as MTL
 import Data.Finite (Finite)
 import qualified Data.Finite as Finite

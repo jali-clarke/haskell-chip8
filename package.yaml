@@ -14,6 +14,7 @@ executables:
     - app
     dependencies:
     - ansi-terminal
+    - async
     - base
     - bytestring
     - containers

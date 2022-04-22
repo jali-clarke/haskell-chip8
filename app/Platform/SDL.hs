@@ -10,10 +10,11 @@ module Platform.SDL
 where
 
 import BaseTypes
+import Control.Concurrent.Async (async, wait)
 import Control.Concurrent.MVar (MVar)
 import qualified Control.Concurrent.MVar as MVar
 import Control.Exception (bracket, bracket_)
-import Data.Char (chr)
+import Control.Monad (void)
 import Data.Finite (Finite)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -32,22 +33,24 @@ newtype WindowCtx = WindowCtx
   }
 
 data KeyboardState = KeyboardState
-  { pressedKeys :: MVar (Map Char Bool),
+  { pressedKeys :: MVar (Map Char SDL.InputMotion),
     currentlyPressedKey :: MVar Char
   }
 
 withPlatform :: (Platform -> IO a) -> IO a
 withPlatform platformCallback = do
-  let initialKeyMap = Map.fromList $ zip (fmap chr [0 .. 255]) (repeat False)
+  let initialKeyMap = Map.fromList $ zip (['0' .. '9'] <> ['a' .. 'f']) (repeat SDL.Released)
   keyboardState <- KeyboardState <$> MVar.newMVar initialKeyMap <*> MVar.newEmptyMVar
-  withWindowCtx $ \windowCtx ->
+  withWindowCtx $ \windowCtx -> do
     let platform =
           Platform.stubPlatform
             { Platform.blockingGetKeyboardKey = blockingGetKeyboardKey keyboardState,
               Platform.isKeyPressed = isKeyPressed keyboardState,
               Platform.renderFrozenScreenBufferData = renderWithWindowCtx windowCtx
             }
-     in platformCallback platform
+    platformAsync <- async $ platformCallback platform
+    eventLoop keyboardState
+    wait platformAsync
 
 withWindowCtx :: (WindowCtx -> IO a) -> IO a
 withWindowCtx callback =
@@ -68,7 +71,6 @@ renderWithWindowCtx :: WindowCtx -> SizedVector.Vector ScreenBufferSize Bool -> 
 renderWithWindowCtx windowCtx bufferData =
   let thisWindowRenderer = windowRenderer windowCtx
    in do
-        SDL.pumpEvents
         SDL.rendererDrawColor thisWindowRenderer $= V4 0x00 0x00 0x00 0xff
         SDL.clear thisWindowRenderer
         SDL.rendererDrawColor thisWindowRenderer $= V4 0xff 0xff 0xff 0xff
@@ -78,10 +80,29 @@ renderWithWindowCtx windowCtx bufferData =
 isKeyPressed :: KeyboardState -> Char -> IO Bool
 isKeyPressed keyboardState char = do
   keyMap <- MVar.readMVar $ pressedKeys keyboardState
-  pure $ Map.findWithDefault False char keyMap
+  pure $ Map.findWithDefault SDL.Released char keyMap == SDL.Pressed
 
 blockingGetKeyboardKey :: KeyboardState -> IO Char
 blockingGetKeyboardKey keyboardState = MVar.readMVar $ currentlyPressedKey keyboardState
+
+eventLoop :: KeyboardState -> IO ()
+eventLoop keyboardState = do
+  event <- SDL.waitEvent
+  case SDL.eventPayload event of
+    SDL.QuitEvent -> pure ()
+    SDL.KeyboardEvent kbEventData ->
+      let keyState = SDL.keyboardEventKeyMotion kbEventData
+          keyChar = toChar . SDL.keysymKeycode . SDL.keyboardEventKeysym $ kbEventData
+          pressedKeysMVar = pressedKeys keyboardState
+          currentlyPressedKeyMVar = currentlyPressedKey keyboardState
+       in do
+            keyMap <- MVar.takeMVar pressedKeysMVar
+            MVar.putMVar pressedKeysMVar (Map.insert keyChar keyState keyMap)
+            case keyState of
+              SDL.Released -> void $ MVar.takeMVar currentlyPressedKeyMVar
+              SDL.Pressed -> MVar.putMVar currentlyPressedKeyMVar keyChar
+            eventLoop keyboardState
+    _ -> eventLoop keyboardState
 
 pointsToDraw :: SizedVector.Vector ScreenBufferSize Bool -> StorableVector.Vector (SDL.Point V2 CInt)
 pointsToDraw bufferData =
@@ -92,6 +113,27 @@ pointsToDraw bufferData =
 
 toV2 :: (KnownNat width, KnownNat height) => Finite width -> Finite height -> V2 CInt
 toV2 width height = V2 (fromIntegral width) (fromIntegral height)
+
+toChar :: SDL.Keycode -> Char
+toChar keycode =
+  case keycode of
+    SDL.Keycode0 -> '0'
+    SDL.Keycode1 -> '1'
+    SDL.Keycode2 -> '2'
+    SDL.Keycode3 -> '3'
+    SDL.Keycode4 -> '4'
+    SDL.Keycode5 -> '5'
+    SDL.Keycode6 -> '6'
+    SDL.Keycode7 -> '7'
+    SDL.Keycode8 -> '8'
+    SDL.Keycode9 -> '9'
+    SDL.KeycodeA -> 'a'
+    SDL.KeycodeB -> 'b'
+    SDL.KeycodeC -> 'c'
+    SDL.KeycodeD -> 'd'
+    SDL.KeycodeE -> 'e'
+    SDL.KeycodeF -> 'f'
+    _ -> '!'
 
 initialWindowWidth :: Finite ((ScreenWidth * 10) + 1)
 initialWindowWidth = 640

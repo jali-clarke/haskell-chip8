@@ -32,8 +32,9 @@ module VM
 where
 
 import BaseTypes
+import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.MVar (MVar)
-import Control.Monad (when)
+import Control.Monad (forever, unless, void, when)
 import qualified Control.Monad.Except as MTL
 import qualified Control.Monad.State.Strict as MTL
 import Data.Bits (unsafeShiftL, (.|.))
@@ -111,7 +112,15 @@ withNewVMState config callback =
                           callback (Right newState)
 
 runAction :: Action stackSize a -> VMState stackSize -> IO (Either String a, VMState stackSize)
-runAction (Action action) vmState = MTL.runStateT (MTL.runExceptT action) vmState
+runAction action vmState = do
+  forkAction timerLoop vmState
+  runAction' action vmState
+
+forkAction :: Action stackSize a -> VMState stackSize -> IO ()
+forkAction action = void . forkIO . void . runAction' action
+
+runAction' :: Action stackSize a -> VMState stackSize -> IO (Either String a, VMState stackSize)
+runAction' (Action action) vmState = MTL.runStateT (MTL.runExceptT action) vmState
 
 withMemoryAction :: Memory.Action a -> Action stackSize a
 withMemoryAction memoryAction =
@@ -268,3 +277,11 @@ debugLog message =
     shouldLogMessage <- MTL.gets shouldLog
     when shouldLogMessage $
       MTL.liftIO $ putStrLn message
+
+timerLoop :: Action vmState ()
+timerLoop =
+  forever $ do
+    soundTimerValue <- withTimersAction Timers.getSoundTimer
+    unless (soundTimerValue == 0x00) $ withPlatform Platform.beep
+    Action $ MTL.liftIO (threadDelay 16666) -- 1/60th of a second
+    withTimersAction Timers.tickTimers

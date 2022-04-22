@@ -8,7 +8,7 @@ module VM.Memory
     Action,
     runAction,
     dumpState,
-    memoryWithLoadedProgram,
+    memoryWithLoadedProgramAndFontData,
     readMemory,
     writeMemory,
     writeMemoryMultiple
@@ -24,6 +24,7 @@ import Data.Finite (Finite)
 import qualified Data.Finite as Finite
 import Data.Foldable (traverse_)
 import qualified Data.Vector.Unboxed.Mutable.Sized as SizedMVector
+import qualified Data.Vector.Unboxed.Sized as SizedVector
 import Data.Word (Word8)
 import GHC.TypeNats (type (+), type (<=))
 import qualified GHC.TypeNats as TypeNats
@@ -31,6 +32,7 @@ import qualified ShowHelpers
 import SizedByteString (SizedByteString)
 import qualified SizedByteString
 import TypeNatsHelpers
+import qualified VM.FontSprites as FontSprites
 
 type MemoryData = SizedMVector.MVector MemorySize (PrimState IO) Word8
 
@@ -51,13 +53,17 @@ dumpState (Memory memoryData) = do
   forM_ rowsWithIndex $ \(rowIndex, row) ->
     putStrLn $ "  " <> ShowHelpers.showWord8 rowIndex <> "_ |" <> dumpStateRowString row
 
-memoryWithLoadedProgram :: (TypeNats.KnownNat programSize, (programSize + 512) <= MemorySize) => SizedByteString programSize -> IO Memory
-memoryWithLoadedProgram programRom = do
+memoryWithLoadedProgramAndFontData :: (TypeNats.KnownNat programSize, (programSize + 512) <= MemorySize) => SizedByteString programSize -> IO (Either String Memory)
+memoryWithLoadedProgramAndFontData programRom = do
   let programLength = SizedByteString.length' programRom
       addresses = Finite.finitesProxy programLength
   memory <- fmap Memory SizedMVector.unsafeNew
-  traverse_ (writeBinFromProgram programRom memory) addresses
-  pure memory
+  maybeFontLoaded <- flip runAction memory $ writeMemoryMultiple 0x000 (SizedVector.toList FontSprites.allFontSprites)
+  case maybeFontLoaded of
+    Left err -> pure $ Left ("error while loading font into memory: " <> err)
+    Right () -> do
+      traverse_ (writeBinFromProgram programRom memory) addresses
+      pure $ Right memory
 
 readMemory :: MemoryAddress -> Action Word8
 readMemory memoryAddress =

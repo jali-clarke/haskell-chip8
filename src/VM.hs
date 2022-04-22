@@ -88,21 +88,24 @@ withNewVMState config callback =
                   case TypeNats.isLE (Proxy :: Proxy (programSize + 512)) (Proxy :: Proxy MemorySize) of
                     Nothing -> callback (Left "program rom is too large" :: Either String (VMState thisStackSize))
                     Just Refl -> do
-                      loadedMemory <- Memory.memoryWithLoadedProgram sizedProgramRom
-                      newRegisters <- Registers.newRegisters
-                      newScreenBuffer <- ScreenBuffer.newScreenBuffer
-                      let newState =
-                            VMState
-                              { platform = Config.platform config,
-                                memory = loadedMemory,
-                                registers = newRegisters,
-                                screenBuffer = newScreenBuffer,
-                                stack = newStack,
-                                timers = Timers.newTimers,
-                                pc = 0x200,
-                                shouldLog = Config.shouldLog config
-                              }
-                      callback (Right newState)
+                      maybeLoadedMemory <- Memory.memoryWithLoadedProgramAndFontData sizedProgramRom
+                      case maybeLoadedMemory of
+                        Left err -> callback (Left err :: Either String (VMState thisStackSize))
+                        Right loadedMemory -> do
+                          newRegisters <- Registers.newRegisters
+                          newScreenBuffer <- ScreenBuffer.newScreenBuffer
+                          let newState =
+                                VMState
+                                  { platform = Config.platform config,
+                                    memory = loadedMemory,
+                                    registers = newRegisters,
+                                    screenBuffer = newScreenBuffer,
+                                    stack = newStack,
+                                    timers = Timers.newTimers,
+                                    pc = 0x200,
+                                    shouldLog = Config.shouldLog config
+                                  }
+                          callback (Right newState)
 
 runAction :: Action stackSize a -> VMState stackSize -> IO (Either String a, VMState stackSize)
 runAction (Action action) vmState = MTL.runStateT (MTL.runExceptT action) vmState

@@ -172,7 +172,9 @@ exec opCode =
     GetLetterSpriteAddress registerAddress -> do
       registerValue <- VM.withRegistersAction $ Registers.readVRegister registerAddress
       if registerValue < 0x10
-        then VM.withRegistersAction $ Registers.writeAddrRegister (fromIntegral registerValue * 5)
+        then do
+          VM.withRegistersAction $ Registers.writeAddrRegister (fromIntegral registerValue * 5)
+          VM.incrementPC
         else VM.throwVMError $ "attempted to get sprite address for invalid value: " <> ShowHelpers.showWord8 registerValue
     StoreBinaryCodedDecimalRep registerAddress -> do
       (registerValue, baseMemoryAddress) <-

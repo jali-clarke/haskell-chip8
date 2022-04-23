@@ -36,26 +36,22 @@
         cabalWrapped = pkgs.writeShellScriptBin "cabal" ''
           ${pkgs.hpack}/bin/hpack && exec ${pkgs.cabal-install}/bin/cabal "$@"
         '';
+
+        mkTestRomScript = scriptName: haskell-chip8: romPath:
+          pkgs.writeShellScriptBin scriptName ''
+            exec "${haskell-chip8}/bin/haskell-chip8" "${romPath}" "$@"
+          '';
       in
       rec {
         defaultPackage = packages.haskell-chip8;
         packages = rec {
           haskell-chip8 = pkgs.haskellPackages.callCabal2nix "haskell-chip8" ./. { };
-          ibm-test = pkgs.writeShellScriptBin "ibm-test" ''
-            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-roms}/roms/IBM Logo.ch8" "$@"
-          '';
-          opcode-test = pkgs.writeShellScriptBin "opcode-test" ''
-            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-test-rom}/test_opcode.ch8" "$@"
-          '';
-          opcode-test2 = pkgs.writeShellScriptBin "opcode-test2" ''
-            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-test-rom2}/roms/bc_test.ch8" "$@"
-          '';
-          pong-test = pkgs.writeShellScriptBin "pong-test" ''
-            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-roms}/roms/Pong (alt).ch8" "$@"
-          '';
-          space-invaders-test = pkgs.writeShellScriptBin "space-invaders-test" ''
-            exec "${haskell-chip8}/bin/haskell-chip8" "${chip8-test-rom2}/roms/games/INVADERS" "$@"
-          '';
+
+          ibm-test = mkTestRomScript "ibm-test" haskell-chip8 "${chip8-roms}/roms/IBM Logo.ch8";
+          opcode-test = mkTestRomScript "opcode-test" haskell-chip8 "${chip8-test-rom}/test_opcode.ch8";
+          opcode-test2 = mkTestRomScript "opcode-test2" haskell-chip8 "${chip8-test-rom2}/roms/bc_test.ch8";
+          pong-test = mkTestRomScript "pong-test" haskell-chip8 "${chip8-roms}/roms/Pong (alt).ch8";
+          space-invaders-test = mkTestRomScript "space-invaders-test" haskell-chip8 "${chip8-test-rom2}/roms/games/INVADERS";
         };
 
         devShell = pkgs.mkShell {

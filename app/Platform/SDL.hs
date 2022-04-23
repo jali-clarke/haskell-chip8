@@ -10,7 +10,7 @@ module Platform.SDL
 where
 
 import BaseTypes
-import Control.Concurrent.Async (async, wait)
+import Control.Concurrent.Async (async, cancel, wait)
 import Control.Concurrent.MVar (MVar)
 import qualified Control.Concurrent.MVar as MVar
 import Control.Exception (bracket, bracket_)
@@ -49,7 +49,8 @@ withPlatform platformCallback = do
               Platform.renderFrozenScreenBufferData = renderWithWindowCtx windowCtx
             }
     platformAsync <- async $ platformCallback platform
-    eventLoop keyboardState
+    eventLoop keyboardState -- runs until SDL.QuitEvent is seen
+    cancel platformAsync
     wait platformAsync
 
 withWindowCtx :: (WindowCtx -> IO a) -> IO a

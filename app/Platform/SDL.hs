@@ -98,9 +98,10 @@ eventLoop keyboardState = do
        in do
             keyMap <- MVar.takeMVar pressedKeysMVar
             MVar.putMVar pressedKeysMVar (Map.insert keyChar keyState keyMap)
+            void $ MVar.tryTakeMVar currentlyPressedKeyMVar
             case keyState of
-              SDL.Released -> void $ MVar.takeMVar currentlyPressedKeyMVar
               SDL.Pressed -> MVar.putMVar currentlyPressedKeyMVar keyChar
+              _ -> pure ()
             eventLoop keyboardState
     _ -> eventLoop keyboardState
 

@@ -27,11 +27,11 @@ execCLIOpts options =
       case maybeVmState of
         Left err -> putStrLn err
         Right vmState -> do
-          (maybeResult, endState) <- VM.runAction vmLoop vmState
+          maybeResult <- VM.runAction vmLoop vmState
           case maybeResult of
             Left err -> putStrLn $ err <> "\n"
             Right () -> pure ()
-          VM.dumpState endState
+          VM.dumpState vmState
 
 vmLoop :: TypeNats.KnownNat stackSize => VM.Action stackSize ()
 vmLoop =

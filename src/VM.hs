@@ -36,9 +36,10 @@ import BaseTypes
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (withAsync)
 import Control.Concurrent.MVar (MVar)
-import Control.Monad (forever, unless, when)
+import qualified Control.Concurrent.MVar as MVar
+import Control.Monad (forever, unless, void, when)
 import qualified Control.Monad.Except as MTL
-import qualified Control.Monad.State.Strict as MTL
+import qualified Control.Monad.Reader as MTL
 import Data.Bits (unsafeShiftL, (.|.))
 import qualified Data.Finite as Finite
 import Data.Proxy (Proxy (..))
@@ -72,13 +73,13 @@ data VMState stackSize = VMState
     screenBuffer :: ScreenBuffer,
     stack :: Stack stackSize,
     timers :: MVar Timers,
-    pc :: MemoryAddress,
+    pc :: MVar MemoryAddress,
     platform :: Platform,
     shouldLog :: Bool,
     tickRate :: Int -- microseconds
   }
 
-newtype Action stackSize a = Action (MTL.ExceptT String (MTL.StateT (VMState stackSize) IO) a) deriving (Functor, Applicative, Monad)
+newtype Action stackSize a = Action (MTL.ReaderT (VMState stackSize) (MTL.ExceptT String IO) a) deriving (Functor, Applicative, Monad)
 
 withNewVMState :: Config -> (forall stackSize. TypeNats.KnownNat stackSize => Either String (VMState stackSize) -> IO r) -> IO r
 withNewVMState config callback =
@@ -101,6 +102,7 @@ withNewVMState config callback =
                           newRegisters <- Registers.newRegisters
                           newScreenBuffer <- ScreenBuffer.newScreenBuffer
                           timersMVar <- Timers.newTimers
+                          pcMVar <- MVar.newMVar 0x200
                           let newState =
                                 VMState
                                   { platform = Config.platform config,
@@ -109,23 +111,23 @@ withNewVMState config callback =
                                     screenBuffer = newScreenBuffer,
                                     stack = newStack,
                                     timers = timersMVar,
-                                    pc = 0x200,
+                                    pc = pcMVar,
                                     shouldLog = Config.shouldLog config,
                                     tickRate = Config.tickRate config
                                   }
                           callback (Right newState)
 
-runAction :: Action stackSize a -> VMState stackSize -> IO (Either String a, VMState stackSize)
+runAction :: Action stackSize a -> VMState stackSize -> IO (Either String a)
 runAction action vmState =
   withAsync (runAction' timerLoop vmState) $ \_ -> runAction' action vmState
 
-runAction' :: Action stackSize a -> VMState stackSize -> IO (Either String a, VMState stackSize)
-runAction' (Action action) vmState = MTL.runStateT (MTL.runExceptT action) vmState
+runAction' :: Action stackSize a -> VMState stackSize -> IO (Either String a)
+runAction' (Action action) vmState = MTL.runExceptT (MTL.runReaderT action vmState)
 
 withMemoryAction :: Memory.Action a -> Action stackSize a
 withMemoryAction memoryAction =
   Action $ do
-    thisMemory <- MTL.gets memory
+    thisMemory <- MTL.asks memory
     maybeResult <- MTL.liftIO $ Memory.runAction memoryAction thisMemory
     case maybeResult of
       Left err -> MTL.throwError err
@@ -134,21 +136,21 @@ withMemoryAction memoryAction =
 withRegistersAction :: Registers.Action a -> Action stackSize a
 withRegistersAction registersAction =
   Action $ do
-    vmState <- MTL.get
-    MTL.liftIO $ Registers.runAction registersAction (registers vmState)
+    theseRegisters <- MTL.asks registers
+    MTL.liftIO $ Registers.runAction registersAction theseRegisters
 
 withScreenBufferAction :: ScreenBuffer.Action a -> Action stackSize a
 withScreenBufferAction screenBufferAction =
   Action $ do
-    thisScreenBuffer <- MTL.gets screenBuffer
+    thisScreenBuffer <- MTL.asks screenBuffer
     MTL.liftIO $ ScreenBuffer.runAction screenBufferAction thisScreenBuffer
 
 withStackAction :: Stack.Action stackSize a -> Action stackSize a
 withStackAction stackAction = do
   maybeResult <-
     Action $ do
-      vmState <- MTL.get
-      MTL.liftIO $ Stack.runAction stackAction (stack vmState)
+      thisStack <- MTL.asks stack
+      MTL.liftIO $ Stack.runAction stackAction thisStack
   case maybeResult of
     Left err -> throwVMError err
     Right result -> pure result
@@ -156,13 +158,12 @@ withStackAction stackAction = do
 withTimersAction :: Timers.Action a -> Action stackSize a
 withTimersAction timersAction =
   Action $ do
-    timersMVar <- MTL.gets timers
+    timersMVar <- MTL.asks timers
     MTL.liftIO $ Timers.runAction timersAction timersMVar
 
 getOpCodeBin :: Action stackSize OpCodeBin
 getOpCodeBin = do
-  vmState <- Action MTL.get
-  let currentPC = pc vmState
+  currentPC <- getPC
   case addOne currentPC of
     Nothing -> throwVMError "program counter (pc) is misaligned; pc + 1 is out of the address range"
     Just currentPCPlusOne ->
@@ -174,16 +175,22 @@ getOpCodeBin = do
 
 incrementPC :: Action stackSize ()
 incrementPC = do
-  currentPC <- Action $ MTL.gets pc
+  currentPC <- getPC
   case addTwo currentPC of
     Nothing -> throwVMError "incremented past end of vm memory"
     Just nextPC -> setPC nextPC
 
 getPC :: Action stackSize MemoryAddress
-getPC = Action $ MTL.gets pc
+getPC =
+  Action $ do
+    pcMVar <- MTL.asks pc
+    MTL.liftIO $ MVar.readMVar pcMVar
 
 setPC :: MemoryAddress -> Action stackSize ()
-setPC nextPC = Action $ MTL.modify (\vmState -> vmState {pc = nextPC})
+setPC nextPC =
+  Action $ do
+    pcMVar <- MTL.asks pc
+    MTL.liftIO . void $ MVar.swapMVar pcMVar nextPC
 
 randomByte :: Action stackSize Word8
 randomByte = withPlatform Platform.randomByte
@@ -256,7 +263,8 @@ dumpState vmState = do
   putChar '\n'
   Registers.dumpState (registers vmState)
   putChar '\n'
-  putStrLn $ "Program counter: " <> ShowHelpers.showMemoryAddress (pc vmState)
+  thisPC <- MVar.readMVar (pc vmState)
+  putStrLn $ "Program counter: " <> ShowHelpers.showMemoryAddress thisPC
   putChar '\n'
   Memory.dumpState (memory vmState)
   putChar '\n'
@@ -264,19 +272,19 @@ dumpState vmState = do
 withPlatform :: (Platform -> IO a) -> Action stackSize a
 withPlatform platformCallback =
   Action $ do
-    thisPlatform <- MTL.gets platform
+    thisPlatform <- MTL.asks platform
     MTL.liftIO $ platformCallback thisPlatform
 
 debugLog :: String -> Action stackSize ()
 debugLog message =
   Action $ do
-    shouldLogMessage <- MTL.gets shouldLog
+    shouldLogMessage <- MTL.asks shouldLog
     when shouldLogMessage $
       MTL.liftIO $ putStrLn message
 
 delayTick :: Action vmState ()
 delayTick = do
-  thisTickRate <- Action $ MTL.gets tickRate
+  thisTickRate <- Action $ MTL.asks tickRate
   delayTick' thisTickRate
 
 delayTick' :: Int -> Action vmState ()

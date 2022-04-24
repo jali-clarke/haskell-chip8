@@ -37,6 +37,7 @@ import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (withAsync)
 import Control.Concurrent.MVar (MVar)
 import qualified Control.Concurrent.MVar as MVar
+import qualified Control.Exception as Exception
 import Control.Monad (forever, unless, void, when)
 import qualified Control.Monad.Except as MTL
 import qualified Control.Monad.Reader as MTL
@@ -119,7 +120,9 @@ withNewVMState config callback =
 
 runAction :: Action stackSize a -> VMState stackSize -> IO (Either String a)
 runAction action vmState =
-  withAsync (runAction' timerLoop vmState) $ \_ -> runAction' action vmState
+  withAsync (runAction' timerLoop vmState) $ \_ ->
+    Exception.catch (runAction' action vmState) $ \(err :: Exception.SomeException) ->
+      pure $ Left ("io exception raised: " <> show err)
 
 runAction' :: Action stackSize a -> VMState stackSize -> IO (Either String a)
 runAction' (Action action) vmState = MTL.runExceptT (MTL.runReaderT action vmState)

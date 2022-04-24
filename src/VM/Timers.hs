@@ -16,52 +16,55 @@ where
 
 import Control.Concurrent.MVar (MVar)
 import qualified Control.Concurrent.MVar as MVar
+import Control.Monad (void)
 import qualified Control.Monad.Reader as MTL
 import Data.Word (Word8)
 import qualified ShowHelpers
 
-data Timers = Timers {delay :: {-# UNPACK #-} !Word8, sound :: {-# UNPACK #-} !Word8}
+data Timers = Timers {delay :: MVar Word8, sound :: MVar Word8}
 
-newtype Action a = Action (MTL.ReaderT (MVar Timers) IO a) deriving (Functor, Applicative, Monad)
+newtype Action a = Action (MTL.ReaderT Timers IO a) deriving (Functor, Applicative, Monad)
 
-runAction :: Action a -> MVar Timers -> IO a
-runAction (Action action) timersMVar = MTL.runReaderT action timersMVar
+runAction :: Action a -> Timers -> IO a
+runAction (Action action) timers = MTL.runReaderT action timers
 
-dumpState :: MVar Timers -> IO ()
-dumpState timersMVar = do
-  timers <- MVar.readMVar timersMVar
+dumpState :: Timers -> IO ()
+dumpState timers = do
   putStrLn "Timers: "
-  putStrLn $ "  Delay: " <> ShowHelpers.showWord8 (delay timers)
-  putStrLn $ "  Sound: " <> ShowHelpers.showWord8 (sound timers)
+  delayValue <- MVar.readMVar (delay timers)
+  putStrLn $ "  Delay: " <> ShowHelpers.showWord8 delayValue
+  soundValue <- MVar.readMVar (sound timers)
+  putStrLn $ "  Sound: " <> ShowHelpers.showWord8 soundValue
 
-newTimers :: IO (MVar Timers)
-newTimers = MVar.newMVar $ Timers {delay = 0, sound = 0}
+newTimers :: IO Timers
+newTimers = do
+  delayMVar <- MVar.newMVar 0
+  soundMVar <- MVar.newMVar 0
+  pure $ Timers {delay = delayMVar, sound = soundMVar}
 
 getDelayTimer :: Action Word8
-getDelayTimer = withMVar $ fmap delay . MVar.readMVar
+getDelayTimer = withTimers $ MVar.readMVar . delay
 
 setDelayTimer :: Word8 -> Action ()
-setDelayTimer timerValue = withMVar $ modifyTimers (\timers -> timers {delay = timerValue})
+setDelayTimer timerValue = withTimers $ \timers -> void (MVar.swapMVar (delay timers) timerValue)
 
 getSoundTimer :: Action Word8
-getSoundTimer = withMVar $ fmap sound . MVar.readMVar
+getSoundTimer = withTimers $ MVar.readMVar . sound
 
 setSoundTimer :: Word8 -> Action ()
-setSoundTimer timerValue = withMVar $ modifyTimers (\timers -> timers {sound = timerValue})
+setSoundTimer timerValue = withTimers $ \timers -> void (MVar.swapMVar (sound timers) timerValue)
 
 tickTimers :: Action ()
-tickTimers = withMVar $ modifyTimers (\(Timers thisDelay thisSound) -> Timers (decrement thisDelay) (decrement thisSound))
+tickTimers =
+  withTimers $ \timers -> do
+    MVar.modifyMVar_ (delay timers) decrement
+    MVar.modifyMVar_ (sound timers) decrement
 
-withMVar :: (MVar Timers -> IO a) -> Action a
-withMVar callback =
+withTimers :: (Timers -> IO a) -> Action a
+withTimers callback =
   Action $ do
-    timersMVar <- MTL.ask
-    MTL.liftIO $ callback timersMVar
+    timers <- MTL.ask
+    MTL.liftIO $ callback timers
 
-modifyTimers :: (Timers -> Timers) -> MVar Timers -> IO ()
-modifyTimers f timersMVar = do
-  timers <- MVar.takeMVar timersMVar
-  MVar.putMVar timersMVar (f timers)
-
-decrement :: Word8 -> Word8
-decrement byte = if byte == 0 then byte else byte - 1
+decrement :: Word8 -> IO Word8
+decrement byte = pure $ if byte == 0 then byte else byte - 1

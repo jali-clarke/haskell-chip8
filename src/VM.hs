@@ -73,7 +73,7 @@ data VMState stackSize = VMState
     registers :: Registers,
     screenBuffer :: ScreenBuffer,
     stack :: Stack stackSize,
-    timers :: MVar Timers,
+    timers :: Timers,
     pc :: MVar MemoryAddress,
     platform :: Platform,
     shouldLog :: Bool,
@@ -102,7 +102,7 @@ withNewVMState config callback =
                         Right loadedMemory -> do
                           newRegisters <- Registers.newRegisters
                           newScreenBuffer <- ScreenBuffer.newScreenBuffer
-                          timersMVar <- Timers.newTimers
+                          newTimers <- Timers.newTimers
                           pcMVar <- MVar.newMVar 0x200
                           let newState =
                                 VMState
@@ -111,7 +111,7 @@ withNewVMState config callback =
                                     registers = newRegisters,
                                     screenBuffer = newScreenBuffer,
                                     stack = newStack,
-                                    timers = timersMVar,
+                                    timers = newTimers,
                                     pc = pcMVar,
                                     shouldLog = Config.shouldLog config,
                                     tickRate = Config.tickRate config
@@ -161,8 +161,8 @@ withStackAction stackAction = do
 withTimersAction :: Timers.Action a -> Action stackSize a
 withTimersAction timersAction =
   Action $ do
-    timersMVar <- MTL.asks timers
-    MTL.liftIO $ Timers.runAction timersAction timersMVar
+    theseTimers <- MTL.asks timers
+    MTL.liftIO $ Timers.runAction timersAction theseTimers
 
 getOpCodeBin :: Action stackSize OpCodeBin
 getOpCodeBin = do

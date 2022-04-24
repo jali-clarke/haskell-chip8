@@ -135,9 +135,7 @@ withRegistersAction :: Registers.Action a -> Action stackSize a
 withRegistersAction registersAction =
   Action $ do
     vmState <- MTL.get
-    (result, newRegisters) <- MTL.liftIO $ Registers.runAction registersAction (registers vmState)
-    MTL.put (vmState {registers = newRegisters})
-    pure result
+    MTL.liftIO $ Registers.runAction registersAction (registers vmState)
 
 withScreenBufferAction :: ScreenBuffer.Action a -> Action stackSize a
 withScreenBufferAction screenBufferAction =

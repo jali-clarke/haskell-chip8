@@ -148,9 +148,7 @@ withStackAction stackAction = do
   maybeResult <-
     Action $ do
       vmState <- MTL.get
-      (maybeResult, newStack) <- MTL.liftIO $ Stack.runAction stackAction (stack vmState)
-      MTL.put (vmState {stack = newStack})
-      pure maybeResult
+      MTL.liftIO $ Stack.runAction stackAction (stack vmState)
   case maybeResult of
     Left err -> throwVMError err
     Right result -> pure result

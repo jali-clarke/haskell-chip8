@@ -17,10 +17,12 @@ module VM.Stack
 where
 
 import BaseTypes
-import Control.Monad (forM_)
+import Control.Concurrent.MVar (MVar)
+import qualified Control.Concurrent.MVar as MVar
+import Control.Monad (forM_, void)
 import qualified Control.Monad.Except as MTL
 import Control.Monad.Primitive (PrimState)
-import qualified Control.Monad.State as MTL
+import qualified Control.Monad.Reader as MTL
 import qualified Data.Vector.Mutable as BoxedMVector
 import qualified Data.Vector.Mutable.Sized as SizedBoxedMVector
 import qualified GHC.TypeNats as TypeNats
@@ -29,17 +31,18 @@ import TypeNatsHelpers
 
 type StackData stackSize = SizedBoxedMVector.MVector stackSize (PrimState IO) MemoryAddress
 
-data Stack stackSize = Stack {stackData :: StackData stackSize, nextStackAddr :: StackAddress stackSize}
+data Stack stackSize = Stack {stackData :: StackData stackSize, nextStackAddr :: MVar (StackAddress stackSize)}
 
-newtype Action stackSize a = Action (MTL.ExceptT String (MTL.StateT (Stack stackSize) IO) a) deriving (Functor, Applicative, Monad)
+newtype Action stackSize a = Action (MTL.ReaderT (Stack stackSize) (MTL.ExceptT String IO) a) deriving (Functor, Applicative, Monad)
 
-runAction :: Action stackSize a -> Stack stackSize -> IO (Either String a, Stack stackSize)
-runAction (Action action) stack = MTL.runStateT (MTL.runExceptT action) stack
+runAction :: Action stackSize a -> Stack stackSize -> IO (Either String a)
+runAction (Action action) stack = MTL.runExceptT (MTL.runReaderT action stack)
 
 dumpState :: TypeNats.KnownNat stackSize => Stack stackSize -> IO ()
 dumpState stack = do
   putStrLn "Stack (grows downwards):"
-  case subOne (nextStackAddr stack) of
+  thisNextStackAddr <- MVar.readMVar (nextStackAddr stack)
+  case subOne thisNextStackAddr of
     Nothing -> putStrLn "  <empty>"
     Just topOfStack ->
       forM_ [0 .. topOfStack] $ \stackAddr -> do
@@ -49,27 +52,31 @@ dumpState stack = do
 withNewStack :: Int -> (forall stackSize. TypeNats.KnownNat stackSize => Stack stackSize -> IO r) -> IO r
 withNewStack maxStackSize callback = do
   unsizedStackData <- BoxedMVector.unsafeNew maxStackSize
-  SizedBoxedMVector.withSized unsizedStackData $ \thisStackData ->
-    callback (Stack {stackData = thisStackData, nextStackAddr = 0})
+  SizedBoxedMVector.withSized unsizedStackData $ \thisStackData -> do
+    nextStackAddrMVar <- MVar.newMVar 0
+    callback (Stack {stackData = thisStackData, nextStackAddr = nextStackAddrMVar})
 
 popStack :: Action stackSize MemoryAddress
 popStack =
   Action $ do
-    stack <- MTL.get
-    case subOne (nextStackAddr stack) of
+    stack <- MTL.ask
+    thisNextStackAddr <- MTL.liftIO $ MVar.readMVar (nextStackAddr stack)
+    case subOne thisNextStackAddr of
       Nothing -> MTL.throwError "stack underflow"
-      Just stackLastElemAddr -> do
-        memAddress <- MTL.liftIO $ SizedBoxedMVector.read (stackData stack) stackLastElemAddr
-        MTL.put $ stack {nextStackAddr = stackLastElemAddr}
-        pure memAddress
+      Just stackLastElemAddr ->
+        MTL.liftIO $ do
+          memAddress <- SizedBoxedMVector.read (stackData stack) stackLastElemAddr
+          void $ MVar.swapMVar (nextStackAddr stack) stackLastElemAddr
+          pure memAddress
 
 pushStack :: TypeNats.KnownNat stackSize => MemoryAddress -> Action stackSize ()
 pushStack returnAddr =
   Action $ do
-    stack <- MTL.get
-    let newStackLastElemAddr = nextStackAddr stack
+    stack <- MTL.ask
+    newStackLastElemAddr <- MTL.liftIO $ MVar.readMVar (nextStackAddr stack)
     case addOne newStackLastElemAddr of
       Nothing -> MTL.throwError "stack overflow"
-      Just newStackNextElemAddr -> do
-        MTL.liftIO $ SizedBoxedMVector.write (stackData stack) newStackLastElemAddr returnAddr
-        MTL.put $ stack {nextStackAddr = newStackNextElemAddr}
+      Just newStackNextElemAddr ->
+        MTL.liftIO $ do
+          SizedBoxedMVector.write (stackData stack) newStackLastElemAddr returnAddr
+          void $ MVar.swapMVar (nextStackAddr stack) newStackNextElemAddr

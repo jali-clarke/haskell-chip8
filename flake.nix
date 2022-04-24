@@ -22,36 +22,31 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-
-        ghc = pkgs.haskell.packages.ghc8107.ghcWithPackages (
-          ps: [
-            ps.ansi-terminal
-            ps.optparse-applicative
-            ps.sdl2
-            ps.typelits-witnesses
-            ps.vector-sized
-          ]
-        );
+        ghc = pkgs.haskell.packages.ghc8107;
 
         cabalWrapped = pkgs.writeShellScriptBin "cabal" ''
           ${pkgs.hpack}/bin/hpack && exec ${pkgs.cabal-install}/bin/cabal "$@"
         '';
 
-        mkTestRomScript = scriptName: haskell-chip8: romPath:
+        haskell-chip8 = ghc.callCabal2nix "haskell-chip8" ./. { };
+
+        mkTestRomScript = scriptName: romPath:
           pkgs.writeShellScriptBin scriptName ''
             exec "${haskell-chip8}/bin/haskell-chip8" "${romPath}" "$@"
           '';
-      in
-      rec {
-        defaultPackage = packages.haskell-chip8;
-        packages = rec {
-          haskell-chip8 = pkgs.haskellPackages.callCabal2nix "haskell-chip8" ./. { };
 
-          ibm-test = mkTestRomScript "ibm-test" haskell-chip8 "${chip8-roms}/roms/IBM Logo.ch8";
-          opcode-test = mkTestRomScript "opcode-test" haskell-chip8 "${chip8-test-rom}/test_opcode.ch8";
-          opcode-test2 = mkTestRomScript "opcode-test2" haskell-chip8 "${chip8-test-rom2}/roms/bc_test.ch8";
-          pong-test = mkTestRomScript "pong-test" haskell-chip8 "${chip8-roms}/roms/Pong (alt).ch8";
-          space-invaders-test = mkTestRomScript "space-invaders-test" haskell-chip8 "${chip8-test-rom2}/roms/games/INVADERS";
+        ghcForEnv = ghc.ghcWithPackages (_: haskell-chip8.getBuildInputs.haskellBuildInputs);
+      in
+      {
+        defaultPackage = haskell-chip8;
+        packages = {
+          inherit haskell-chip8;
+
+          ibm-test = mkTestRomScript "ibm-test" "${chip8-roms}/roms/IBM Logo.ch8";
+          opcode-test = mkTestRomScript "opcode-test" "${chip8-test-rom}/test_opcode.ch8";
+          opcode-test2 = mkTestRomScript "opcode-test2" "${chip8-test-rom2}/roms/bc_test.ch8";
+          pong-test = mkTestRomScript "pong-test" "${chip8-roms}/roms/Pong (alt).ch8";
+          space-invaders-test = mkTestRomScript "space-invaders-test" "${chip8-test-rom2}/roms/games/INVADERS";
         };
 
         devShell = pkgs.mkShell {
@@ -60,7 +55,7 @@
             pkgs.ormolu
 
             cabalWrapped
-            ghc
+            ghcForEnv
           ];
         };
       }
